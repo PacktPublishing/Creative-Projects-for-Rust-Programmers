@@ -1,0 +1,8 @@
+[package]
+name = "use_structopt"
+version = "0.1.0"
+authors = ["carlomilanesi"]
+edition = "2018"
+
+[dependencies]
+structopt = "0.2"
