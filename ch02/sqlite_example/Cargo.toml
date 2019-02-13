@@ -1,0 +1,9 @@
+[package]
+name = "sqlite_write"
+version = "0.1.0"
+authors = ["cmilanesi <carlo.milanesi@libero.it>"]
+edition = "2018"
+
+[dependencies]
+rusqlite = "0.16.0"
+time = "0.1"
