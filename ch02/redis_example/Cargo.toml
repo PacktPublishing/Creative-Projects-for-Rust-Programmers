@@ -1,0 +1,8 @@
+[package]
+name = "redis_example"
+version = "0.1.0"
+authors = ["cmilanesi <carlo.milanesi@libero.it>"]
+edition = "2018"
+
+[dependencies]
+redis = "0.9"
