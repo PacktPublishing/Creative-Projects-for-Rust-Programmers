@@ -1,9 +1,8 @@
 [package]
-name = "redis_example"
+name = "toml_dynamic"
 version = "0.1.0"
 authors = []
 edition = "2018"
 
 [dependencies]
-redis = "0.9"
-
+toml = "0.4"

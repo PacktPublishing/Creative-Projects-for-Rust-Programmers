@@ -1,0 +1,37 @@
+{
+  "products": [
+    {
+      "category": "fruit",
+      "id": 591,
+      "name": "orange"
+    },
+    {
+      "category": "furniture",
+      "id": 190,
+      "name": "chair"
+    }
+  ],
+  "sales": [
+    {
+      "date": 1234527890,
+      "id": "2020-7110",
+      "product_id": 190,
+      "quantity": 2.0,
+      "unit": "u."
+    },
+    {
+      "date": 1234567590,
+      "id": "2020-2871",
+      "product_id": 591,
+      "quantity": 3.64,
+      "unit": "Kg"
+    },
+    {
+      "date": 1234563890,
+      "id": "2020-2583",
+      "product_id": 190,
+      "quantity": 4.0,
+      "unit": "u."
+    }
+  ]
+}

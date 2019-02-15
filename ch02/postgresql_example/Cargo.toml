@@ -1,8 +1,9 @@
 [package]
 name = "postgresql_write"
 version = "0.1.0"
-authors = ["cmilanesi <carlo.milanesi@libero.it>"]
+authors = []
 edition = "2018"
 
 [dependencies]
 postgres = "0.15"
+

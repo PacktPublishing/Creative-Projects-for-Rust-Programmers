@@ -13,29 +13,6 @@ struct SaleWithProduct {
 fn create_db() -> Result<Connection> {
     let database_file = "sales.db";
     let conn = Connection::open(database_file)?;
-    /*
-    conn.execute(
-        "CREATE TABLE IF NOT EXISTS Products (
-             id INTEGER PRIMARY KEY,
-             category TEXT NOT NULL,
-             name TEXT NOT NULL UNIQUE
-         )",
-        NO_PARAMS,
-    )?;
-    conn.execute(
-        "CREATE TABLE IF NOT EXISTS Sales (
-             id TEXT PRIMARY KEY,
-             product_id INTEGER NOT NULL,
-             sale_date INTEGER NOT NULL,
-             quantity REAL NOT NULL,
-             unit TEXT NOT NULL,
-             CONSTRAINT FK_Product
-                FOREIGN KEY (product_id)
-                REFERENCES Products (id)
-         )",
-        NO_PARAMS,
-    )?;
-    */
     conn.execute("DROP TABLE Sales", NO_PARAMS)?;
     conn.execute("DROP TABLE Products", NO_PARAMS)?;
     conn.execute(
@@ -58,22 +35,6 @@ fn create_db() -> Result<Connection> {
 }
 
 fn populate_db(conn: &Connection) -> Result<()> {
-    /*
-    conn.execute(
-        "INSERT INTO Products (
-            id, category, name
-            ) VALUES (?1, ?2, ?3)",
-        &[&1 as &ToSql, &"Frutta", &"Mele"],
-    )?;
-    conn.execute(
-        "INSERT INTO Sales (
-            id, product_id, date, quantity, unit
-            ) VALUES (?1, ?2, ?3, ?4, ?5)",
-        &[&"2019-001" as &ToSql, &1,
-            &1234567890, &7.439, &"Kg"],
-    )?;
-    Ok(())
-    */
     conn.execute(
         "INSERT INTO Products (
             id, category, name

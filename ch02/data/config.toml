@@ -1,0 +1,17 @@
+[input]
+xml_file = "sales.xml"
+json_file = "sales.json"
+
+[redis]
+host = "localhost"
+
+[sqlite]
+db_file = "sales.db"
+
+[postgresql]
+username = "postgres"
+password = "post"
+host = "localhost"
+port = "5432"
+database = "Rust2018"
+
