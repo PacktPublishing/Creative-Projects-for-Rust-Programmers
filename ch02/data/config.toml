@@ -1,12 +1,12 @@
 [input]
-xml_file = "sales.xml"
-json_file = "sales.json"
+xml_file = "../data/sales.xml"
+json_file = "../data/sales.json"
 
 [redis]
 host = "localhost"
 
 [sqlite]
-db_file = "sales.db"
+db_file = "../data/sales.db"
 
 [postgresql]
 username = "postgres"

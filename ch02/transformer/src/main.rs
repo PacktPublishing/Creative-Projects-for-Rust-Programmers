@@ -1,29 +1,66 @@
+use serde_derive::{Deserialize, Serialize};
 use xml::reader::{EventReader, XmlEvent};
+use rusqlite::NO_PARAMS;
+extern crate postgres;
+use postgres::TlsMode;
+use redis::Commands;
 
-#[derive(Debug, Default)]
+#[allow(unused)]
+#[derive(Debug, Deserialize)]
+struct Input {
+    xml_file: String,
+    json_file: String,
+}
+#[allow(unused)]
+#[derive(Debug, Deserialize)]
+struct Redis {
+    host: String,
+}
+#[allow(unused)]
+#[derive(Debug, Deserialize)]
+struct Sqlite {
+    db_file: String,
+}
+#[allow(unused)]
+#[derive(Debug, Deserialize)]
+struct Postgresql {
+    username: String,
+    password: String,
+    host: String,
+    port: String,
+    database: String,
+}
+#[allow(unused)]
+#[derive(Debug, Deserialize)]
+struct Config {
+    input: Input,
+    redis: Redis,
+    sqlite: Sqlite,
+    postgresql: Postgresql,
+}
+
+#[derive(Deserialize, Serialize, Debug, Default)]
 struct Product {
-    id: u32,
+    id: i32,
     category: String,
     name: String,
 }
 
-#[derive(Debug, Default)]
+#[derive(Deserialize, Serialize, Debug, Default)]
 struct Sale {
     id: String,
-    product_id: u32,
+    product_id: i32,
     date: i64,
     quantity: f64,
     unit: String,
 }
 
-#[derive(Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 struct SalesAndProducts {
     products: Vec<Product>,
     sales: Vec<Sale>,
 }
 
-///*
-//#[derive(Copy, Clone)]
 enum LocationItem {
     Other,
     InProduct,
@@ -43,9 +80,17 @@ enum LocationSale {
     InQuantity,
     InUnit,
 }
-//*/
-fn main() {
-    let file = std::fs::File::open("../data/sales.xml").unwrap();
+
+fn read_json_file(pathname: &str) -> SalesAndProducts {
+    serde_json::from_str::<SalesAndProducts>(
+        &std::fs::read_to_string(&pathname).unwrap()).unwrap()
+}
+
+fn read_xml_file(
+    pathname: &str,
+    sales_and_products: &mut SalesAndProducts)
+{
+    let file = std::fs::File::open(pathname).unwrap();
     let file = std::io::BufReader::new(file);
     let mut product: Product = Default::default();
     let mut sale: Sale = Default::default();
@@ -54,7 +99,6 @@ fn main() {
     let mut location_product = LocationProduct::Other;
     let mut location_sale = LocationSale::Other;
     for event in parser {
-//        println!("E: {:?}", event);
         match &location_item {
             LocationItem::Other => match event {
                 Ok(XmlEvent::StartElement { ref name, .. })
@@ -63,7 +107,6 @@ fn main() {
                     location_item = LocationItem::InProduct;
                     location_product = LocationProduct::Other;
                     product = Default::default();
-                    //println!("Enter product");
                 },
                 Ok(XmlEvent::StartElement { ref name, .. })
                     if name.local_name == "sale"
@@ -71,7 +114,6 @@ fn main() {
                     location_item = LocationItem::InSale;
                     location_sale = LocationSale::Other;
                     sale = Default::default();
-                    //println!("Enter sale");
                 },
                 _ => {},
             },
@@ -81,33 +123,29 @@ fn main() {
                         Ok(XmlEvent::StartElement { ref name, .. })
                             if name.local_name == "id" => {
                             location_product = LocationProduct::InId;
-                            //println!("Enter product.id");
                         },
                         Ok(XmlEvent::StartElement { ref name, .. })
                             if name.local_name == "category" => {
                             location_product = LocationProduct::InCategory;
-                            //println!("Enter product.category");
                         },
                         Ok(XmlEvent::StartElement { ref name, .. })
                             if name.local_name == "name" => {
                             location_product = LocationProduct::InName;
-                            //println!("Enter product.name");
                         },
-                        Ok(XmlEvent::EndElement { ref name, .. }) => {
+                        Ok(XmlEvent::EndElement { .. }) => {
                             location_item = LocationItem::Other;
-                            println!("  Exit product: {:?}", product);
+                            sales_and_products.products.push(product);
+                            product = Default::default();
                         },
                         _ => {},
                     },
                 LocationProduct::InId => match event {
                     Ok(XmlEvent::Characters ( characters ))
                     => {
-                        product.id = characters.parse::<u32>().unwrap();
-                        println!("Got product.id: {}.", characters);
+                        product.id = characters.parse::<i32>().unwrap();
                     },
                     Ok(XmlEvent::EndElement { .. }) => {
                         location_product = LocationProduct::Other;
-                        //println!("Exit product.id");
                     },
                     _ => {},
                 },
@@ -115,11 +153,9 @@ fn main() {
                     Ok(XmlEvent::Characters ( characters ))
                     => {
                         product.category = characters.clone();
-                        println!("Got product.category: {}.", characters);
                     },
                     Ok(XmlEvent::EndElement { .. }) => {
                         location_product = LocationProduct::Other;
-                        //println!("Exit product.category");
                     },
                     _ => {},
                 },
@@ -127,11 +163,9 @@ fn main() {
                     Ok(XmlEvent::Characters ( characters ))
                     => {
                         product.name = characters.clone();
-                        println!("Got product.name: {}.", characters);
                     },
                     Ok(XmlEvent::EndElement { .. }) => {
                         location_product = LocationProduct::Other;
-                        //println!("Exit product.name");
                     },
                     _ => {},
                 },
@@ -141,32 +175,28 @@ fn main() {
                     Ok(XmlEvent::StartElement { ref name, .. })
                         if name.local_name == "id" => {
                         location_sale = LocationSale::InId;
-                        //println!("Enter sale.id");
                     },
                     Ok(XmlEvent::StartElement { ref name, .. })
                         if name.local_name == "product-id" => {
                         location_sale = LocationSale::InProductId;
-                        //println!("Enter sale.product-id");
                     },
                     Ok(XmlEvent::StartElement { ref name, .. })
                         if name.local_name == "date" => {
                         location_sale = LocationSale::InDate;
-                        //println!("Enter sale.date");
                     },
                     Ok(XmlEvent::StartElement { ref name, .. })
                         if name.local_name == "quantity" => {
                         location_sale = LocationSale::InQuantity;
-                        //println!("Enter sale.quantity");
                     },
                     Ok(XmlEvent::StartElement { ref name, .. })
                         if name.local_name == "unit" => {
                         location_sale = LocationSale::InUnit;
-                        //println!("Enter sale.unit");
                     },
                     Ok(XmlEvent::EndElement { ref name, .. })
                         if name.local_name == "sale" => {
                         location_item = LocationItem::Other;
-                        println!("  Exit sale: {:?}", sale);
+                        sales_and_products.sales.push(sale);
+                        sale = Default::default();
                     },
                     _ => {},
                 },
@@ -174,23 +204,19 @@ fn main() {
                     Ok(XmlEvent::Characters ( characters ))
                     => {
                         sale.id = characters.clone();
-                        println!("Got sale.id: {}.", characters);
                     },
                     Ok(XmlEvent::EndElement { .. }) => {
                         location_sale = LocationSale::Other;
-                        //println!("Exit sale.id");
                     },
                     _ => {},
                 },
                 LocationSale::InProductId => match event {
                     Ok(XmlEvent::Characters ( characters ))
                     => {
-                        sale.product_id = characters.parse::<u32>().unwrap();
-                        println!("Got sale.product-id: {}.", characters);
+                        sale.product_id = characters.parse::<i32>().unwrap();
                     },
                     Ok(XmlEvent::EndElement { .. }) => {
                         location_sale = LocationSale::Other;
-                        //println!("Exit sale.product-id");
                     },
                     _ => {},
                 },
@@ -198,11 +224,9 @@ fn main() {
                     Ok(XmlEvent::Characters ( characters ))
                     => {
                         sale.date = characters.parse::<i64>().unwrap();
-                        println!("Got sale.date: {}.", characters);
                     },
                     Ok(XmlEvent::EndElement { .. }) => {
                         location_sale = LocationSale::Other;
-                        //println!("Exit sale.date");
                     },
                     _ => {},
                 },
@@ -210,11 +234,9 @@ fn main() {
                     Ok(XmlEvent::Characters ( characters ))
                     => {
                         sale.quantity = characters.parse::<f64>().unwrap();
-                        println!("Got sale.quantity: {}.", characters);
                     },
                     Ok(XmlEvent::EndElement { .. }) => {
                         location_sale = LocationSale::Other;
-                        //println!("Exit sale.quantity");
                     },
                     _ => {},
                 },
@@ -222,73 +244,189 @@ fn main() {
                     Ok(XmlEvent::Characters ( characters ))
                     => {
                         sale.unit = characters.clone();
-                        println!("Got sale.unit: {}.", characters);
                     },
                     Ok(XmlEvent::EndElement { .. }) => {
                         location_sale = LocationSale::Other;
-                        //println!("Exit sale.unit");
                     },
                     _ => {},
                 },
             },
         }
-        // At StartElement product enters a product
-
-        /*
-        match location {
-            Location::AtRoot =>
-                match event {
-                    Ok(XmlEvent::StartElement { ref name, .. }) =>
-                        if name.local_name == "person" {
-                            location = Location::InPerson;
-                        },
-                    _ => (),
-                },
-            Location::InPerson =>
-                match event {
-                    Ok(XmlEvent::StartElement { ref name, .. }) =>
-                        //location = match name.local_name.as_ref() {
-                        location = match name.local_name.as_str() {
-                            "name" => Location::InName,
-                            "child" => Location::InChild,
-                            "level" => Location::InLevel,
-                            _ => Location::InOtherPersonalData,
-                        },
-                    Ok(XmlEvent::EndElement { .. }) =>
-                        location = Location::AtRoot,
-                    _ => (),
-                },
-            Location::InName =>
-                match event {
-                    Ok(XmlEvent::Characters ( characters )) =>
-                        p.name = characters,
-                    Ok(XmlEvent::EndElement { .. }) =>
-                        location = Location::InPerson,
-                    _ => (),
-                },
-            Location::InChild =>
-                match event {
-                    Ok(XmlEvent::Characters ( characters )) =>
-                        p.children.push(characters),
-                    Ok(XmlEvent::EndElement { .. }) =>
-                        location = Location::InPerson,
-                    _ => (),
-                },
-            Location::InLevel =>
-                match event {
-                    Ok(XmlEvent::Characters ( characters )) =>
-                        p.level = characters.parse().unwrap(),
-                    Ok(XmlEvent::EndElement { .. }) =>
-                        location = Location::InPerson,
-                    _ => (),
-                },
-            Location::InOtherPersonalData =>
-                match event {
-                    Ok(XmlEvent::EndElement { .. }) =>
-                        location = Location::InPerson,
-                    _ => (),
-                },
-        }
-        */
     }
+}
+
+fn recreate_sqlite_db(sqlite_config: &Sqlite)
+-> rusqlite::Result<rusqlite::Connection> {
+    let conn = rusqlite::Connection::open(&sqlite_config.db_file)?;
+    let _ = conn.execute("DROP TABLE Sales", NO_PARAMS);
+    let _ = conn.execute("DROP TABLE Products", NO_PARAMS);
+    conn.execute(
+        "CREATE TABLE Products (
+            id INTEGER PRIMARY KEY,
+            category TEXT NOT NULL,
+            name TEXT NOT NULL UNIQUE)",
+        NO_PARAMS
+    )?;
+    conn.execute(
+        "CREATE TABLE Sales (
+            id TEXT PRIMARY KEY,
+            product_id INTEGER NOT NULL REFERENCES Products,
+            sale_date BIGINT NOT NULL,
+            quantity DOUBLE PRECISION NOT NULL,
+            unit TEXT NOT NULL)",
+        NO_PARAMS
+    )?;
+    Ok(conn)
+}
+
+fn write_into_sqlite_db(
+    conn: &rusqlite::Connection,
+    sales_and_products: &SalesAndProducts)
+    -> rusqlite::Result<()>
+{
+    for product in &sales_and_products.products {
+        conn.execute(
+            "INSERT INTO Products (
+            id, category, name
+            ) VALUES ($1, $2, $3)",
+            &[
+                &product.id as &rusqlite::types::ToSql,
+                &product.category,
+                &product.name],
+        )?;
+    }
+    for sale in &sales_and_products.sales {
+        conn.execute(
+            "INSERT INTO Sales (
+            id, product_id, sale_date, quantity, unit
+            ) VALUES ($1, $2, $3, $4, $5)",
+            &[
+                &sale.id as &rusqlite::types::ToSql,
+                &sale.product_id,
+                &sale.date,
+                &sale.quantity,
+                &sale.unit],
+        )?;
+    }
+    Ok(())
+}
+
+fn recreate_postgresql_db(postgresql_config: &Postgresql)
+    -> postgres::Result<postgres::Connection>
+ {
+    let conn = postgres::Connection::connect(
+        format!(
+            "postgres://{}{}{}@{}{}{}{}{}",
+            postgresql_config.username,
+            if postgresql_config.password.len() == 0 { "" } else { ":" },
+            postgresql_config.password,
+            postgresql_config.host,
+            if postgresql_config.port.len() == 0 { "" } else { ":" },
+            postgresql_config.port,
+            if postgresql_config.database.len() == 0 { "" } else { "/" },
+            postgresql_config.database),
+        TlsMode::None)?;
+    conn.execute("DROP TABLE Sales", &[])?;
+    conn.execute("DROP TABLE Products", &[])?;
+    conn.execute(
+        "CREATE TABLE Products (
+        id INTEGER PRIMARY KEY,
+        category TEXT NOT NULL,
+        name TEXT NOT NULL UNIQUE)",
+        &[]
+    )?;
+    conn.execute(
+        "CREATE TABLE Sales (
+        id TEXT PRIMARY KEY,
+        product_id INTEGER NOT NULL REFERENCES Products,
+        sale_date BIGINT NOT NULL,
+        quantity DOUBLE PRECISION NOT NULL,
+        unit TEXT NOT NULL)",
+        &[]
+    )?;
+    Ok(conn)
+}
+
+fn write_into_postgresql_db(
+    conn: &postgres::Connection,
+    sales_and_products: &SalesAndProducts)
+    -> postgres::Result<()>
+{
+    for product in &sales_and_products.products {
+        conn.execute(
+            "INSERT INTO Products (
+            id, category, name
+            ) VALUES ($1, $2, $3)",
+            &[
+                &(product.id as i32) as &postgres::types::ToSql,
+                &product.category,
+                &product.name],
+        )?;
+    }
+    for sale in &sales_and_products.sales {
+        conn.execute(
+            "INSERT INTO Sales (
+            id, product_id, sale_date, quantity, unit
+            ) VALUES ($1, $2, $3, $4, $5)",
+            &[
+                &sale.id as &postgres::types::ToSql,
+                &(sale.product_id as i32),
+                &sale.date,
+                &sale.quantity,
+                &sale.unit],
+        )?;
+    }
+    Ok(())
+}
+
+fn write_into_redis_db(
+    redis_config: &Redis,
+    sales_and_products: &SalesAndProducts)
+    -> redis::RedisResult<()>
+{
+    let conn = redis::Client::open(
+        format!("redis://{}/", redis_config.host).as_str())?
+        .get_connection()?;
+
+    for product in &sales_and_products.products {
+        conn.set(format!("product:{}:category", product.id),
+            &product.category)?;
+        conn.set(format!("product:{}:name", product.id),
+            &product.name)?;
+    }
+    for sale in &sales_and_products.sales {
+        conn.set(format!("sale:{}:product_id", sale.id),
+            sale.product_id)?;
+        conn.set(format!("sale:{}:sale_date", sale.id),
+            sale.date)?;
+        conn.set(format!("sale:{}:quantity", sale.id),
+            sale.quantity)?;
+        conn.set(format!("sale:{}:unit", sale.id),
+            &sale.unit)?;
+    }
+    Ok(())
+}
+
+fn main() {
+    // Define the config structure by reading the TOML file
+    // specified in the command line.
+    let config: Config =
+    {
+        let config_path = std::env::args().nth(1).unwrap();
+        let config_text = std::fs::read_to_string(&config_path).unwrap();
+        toml::from_str(&config_text).unwrap()
+    };
+
+    let mut sales_and_products = 
+        read_json_file(&config.input.json_file);
+
+    read_xml_file(&config.input.xml_file, &mut sales_and_products);
+
+    let sqlite_conn = recreate_sqlite_db(&config.sqlite).unwrap();
+    write_into_sqlite_db(&sqlite_conn, &sales_and_products).unwrap();
+
+    let postgresql_conn = recreate_postgresql_db(&config.postgresql).unwrap();
+    write_into_postgresql_db(&postgresql_conn, &sales_and_products).unwrap();
+
+    write_into_redis_db(&config.redis, &sales_and_products).unwrap();
 }

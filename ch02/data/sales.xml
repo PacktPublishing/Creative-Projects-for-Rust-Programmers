@@ -1,28 +1,31 @@
-<product>
-    <id>862</id>
-    <category>fruit</category>
-    <name>cherry</name>
-</product>
+<?xml version="1.0" encoding="utf-8"?>
+<sales-and-products>
+    <product>
+        <id>862</id>
+        <category>fruit</category>
+        <name>cherry</name>
+    </product>
 
-<product>
-    <id>236</id>
-    <category>furniture</category>
-    <name>table</name>
-</product>
+    <product>
+        <id>236</id>
+        <category>furniture</category>
+        <name>table</name>
+    </product>
 
-<sale>
-    <id>2020-3987</id>
-    <product-id>862</product-id>
-    <date>2020-04-26</date>
-    <quantity>0.753</quantity>
-    <unit>Kg</unit>
-</sale>
+    <sale>
+        <id>2020-3987</id>
+        <product-id>862</product-id>
+        <date>1238563890</date>
+        <quantity>0.753</quantity>
+        <unit>Kg</unit>
+    </sale>
 
-<sale>
-    <id>2020-3992</id>
-    <product-id>236</product-id>
-    <date>2020-04-27</date>
-    <quantity>1</quantity>
-    <unit>u.</unit>
-</sale>
+    <sale>
+        <id>2020-3992</id>
+        <product-id>236</product-id>
+        <date>1238567890</date>
+        <quantity>1</quantity>
+        <unit>u.</unit>
+    </sale>
+</sales-and-products>
 
