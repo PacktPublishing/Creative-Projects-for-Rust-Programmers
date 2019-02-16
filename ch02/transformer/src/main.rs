@@ -1,7 +1,6 @@
 use serde_derive::{Deserialize, Serialize};
 use xml::reader::{EventReader, XmlEvent};
 use rusqlite::NO_PARAMS;
-extern crate postgres;
 use postgres::TlsMode;
 use redis::Commands;
 
@@ -429,4 +428,6 @@ fn main() {
     write_into_postgresql_db(&postgresql_conn, &sales_and_products).unwrap();
 
     write_into_redis_db(&config.redis, &sales_and_products).unwrap();
+
+    println!("Done!");
 }

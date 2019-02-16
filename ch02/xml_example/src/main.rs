@@ -16,14 +16,6 @@ struct Sale {
     unit: String,
 }
 
-#[derive(Debug)]
-struct SalesAndProducts {
-    products: Vec<Product>,
-    sales: Vec<Sale>,
-}
-
-///*
-//#[derive(Copy, Clone)]
 enum LocationItem {
     Other,
     InProduct,
@@ -43,9 +35,10 @@ enum LocationSale {
     InQuantity,
     InUnit,
 }
-//*/
+
 fn main() {
-    let file = std::fs::File::open("../data/sales.xml").unwrap();
+    let pathname = std::env::args().nth(1).unwrap();
+    let file = std::fs::File::open(pathname).unwrap();
     let file = std::io::BufReader::new(file);
     let mut product: Product = Default::default();
     let mut sale: Sale = Default::default();
@@ -54,7 +47,6 @@ fn main() {
     let mut location_product = LocationProduct::Other;
     let mut location_sale = LocationSale::Other;
     for event in parser {
-//        println!("E: {:?}", event);
         match &location_item {
             LocationItem::Other => match event {
                 Ok(XmlEvent::StartElement { ref name, .. })
@@ -63,7 +55,6 @@ fn main() {
                     location_item = LocationItem::InProduct;
                     location_product = LocationProduct::Other;
                     product = Default::default();
-                    //println!("Enter product");
                 },
                 Ok(XmlEvent::StartElement { ref name, .. })
                     if name.local_name == "sale"
@@ -71,7 +62,6 @@ fn main() {
                     location_item = LocationItem::InSale;
                     location_sale = LocationSale::Other;
                     sale = Default::default();
-                    //println!("Enter sale");
                 },
                 _ => {},
             },
@@ -81,19 +71,16 @@ fn main() {
                         Ok(XmlEvent::StartElement { ref name, .. })
                             if name.local_name == "id" => {
                             location_product = LocationProduct::InId;
-                            //println!("Enter product.id");
                         },
                         Ok(XmlEvent::StartElement { ref name, .. })
                             if name.local_name == "category" => {
                             location_product = LocationProduct::InCategory;
-                            //println!("Enter product.category");
                         },
                         Ok(XmlEvent::StartElement { ref name, .. })
                             if name.local_name == "name" => {
                             location_product = LocationProduct::InName;
-                            //println!("Enter product.name");
                         },
-                        Ok(XmlEvent::EndElement { ref name, .. }) => {
+                        Ok(XmlEvent::EndElement { .. }) => {
                             location_item = LocationItem::Other;
                             println!("  Exit product: {:?}", product);
                         },
@@ -107,7 +94,6 @@ fn main() {
                     },
                     Ok(XmlEvent::EndElement { .. }) => {
                         location_product = LocationProduct::Other;
-                        //println!("Exit product.id");
                     },
                     _ => {},
                 },
@@ -119,7 +105,6 @@ fn main() {
                     },
                     Ok(XmlEvent::EndElement { .. }) => {
                         location_product = LocationProduct::Other;
-                        //println!("Exit product.category");
                     },
                     _ => {},
                 },
@@ -131,7 +116,6 @@ fn main() {
                     },
                     Ok(XmlEvent::EndElement { .. }) => {
                         location_product = LocationProduct::Other;
-                        //println!("Exit product.name");
                     },
                     _ => {},
                 },
@@ -141,27 +125,22 @@ fn main() {
                     Ok(XmlEvent::StartElement { ref name, .. })
                         if name.local_name == "id" => {
                         location_sale = LocationSale::InId;
-                        //println!("Enter sale.id");
                     },
                     Ok(XmlEvent::StartElement { ref name, .. })
                         if name.local_name == "product-id" => {
                         location_sale = LocationSale::InProductId;
-                        //println!("Enter sale.product-id");
                     },
                     Ok(XmlEvent::StartElement { ref name, .. })
                         if name.local_name == "date" => {
                         location_sale = LocationSale::InDate;
-                        //println!("Enter sale.date");
                     },
                     Ok(XmlEvent::StartElement { ref name, .. })
                         if name.local_name == "quantity" => {
                         location_sale = LocationSale::InQuantity;
-                        //println!("Enter sale.quantity");
                     },
                     Ok(XmlEvent::StartElement { ref name, .. })
                         if name.local_name == "unit" => {
                         location_sale = LocationSale::InUnit;
-                        //println!("Enter sale.unit");
                     },
                     Ok(XmlEvent::EndElement { ref name, .. })
                         if name.local_name == "sale" => {
@@ -178,7 +157,6 @@ fn main() {
                     },
                     Ok(XmlEvent::EndElement { .. }) => {
                         location_sale = LocationSale::Other;
-                        //println!("Exit sale.id");
                     },
                     _ => {},
                 },
@@ -190,7 +168,6 @@ fn main() {
                     },
                     Ok(XmlEvent::EndElement { .. }) => {
                         location_sale = LocationSale::Other;
-                        //println!("Exit sale.product-id");
                     },
                     _ => {},
                 },
@@ -202,7 +179,6 @@ fn main() {
                     },
                     Ok(XmlEvent::EndElement { .. }) => {
                         location_sale = LocationSale::Other;
-                        //println!("Exit sale.date");
                     },
                     _ => {},
                 },
@@ -214,7 +190,6 @@ fn main() {
                     },
                     Ok(XmlEvent::EndElement { .. }) => {
                         location_sale = LocationSale::Other;
-                        //println!("Exit sale.quantity");
                     },
                     _ => {},
                 },
@@ -226,69 +201,10 @@ fn main() {
                     },
                     Ok(XmlEvent::EndElement { .. }) => {
                         location_sale = LocationSale::Other;
-                        //println!("Exit sale.unit");
                     },
                     _ => {},
                 },
             },
         }
-        // At StartElement product enters a product
-
-        /*
-        match location {
-            Location::AtRoot =>
-                match event {
-                    Ok(XmlEvent::StartElement { ref name, .. }) =>
-                        if name.local_name == "person" {
-                            location = Location::InPerson;
-                        },
-                    _ => (),
-                },
-            Location::InPerson =>
-                match event {
-                    Ok(XmlEvent::StartElement { ref name, .. }) =>
-                        //location = match name.local_name.as_ref() {
-                        location = match name.local_name.as_str() {
-                            "name" => Location::InName,
-                            "child" => Location::InChild,
-                            "level" => Location::InLevel,
-                            _ => Location::InOtherPersonalData,
-                        },
-                    Ok(XmlEvent::EndElement { .. }) =>
-                        location = Location::AtRoot,
-                    _ => (),
-                },
-            Location::InName =>
-                match event {
-                    Ok(XmlEvent::Characters ( characters )) =>
-                        p.name = characters,
-                    Ok(XmlEvent::EndElement { .. }) =>
-                        location = Location::InPerson,
-                    _ => (),
-                },
-            Location::InChild =>
-                match event {
-                    Ok(XmlEvent::Characters ( characters )) =>
-                        p.children.push(characters),
-                    Ok(XmlEvent::EndElement { .. }) =>
-                        location = Location::InPerson,
-                    _ => (),
-                },
-            Location::InLevel =>
-                match event {
-                    Ok(XmlEvent::Characters ( characters )) =>
-                        p.level = characters.parse().unwrap(),
-                    Ok(XmlEvent::EndElement { .. }) =>
-                        location = Location::InPerson,
-                    _ => (),
-                },
-            Location::InOtherPersonalData =>
-                match event {
-                    Ok(XmlEvent::EndElement { .. }) =>
-                        location = Location::InPerson,
-                    _ => (),
-                },
-        }
-        */
     }
 }

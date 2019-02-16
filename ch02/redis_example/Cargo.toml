@@ -6,4 +6,3 @@ edition = "2018"
 
 [dependencies]
 redis = "0.9"
-

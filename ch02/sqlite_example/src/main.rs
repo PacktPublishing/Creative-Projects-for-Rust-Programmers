@@ -13,8 +13,8 @@ struct SaleWithProduct {
 fn create_db() -> Result<Connection> {
     let database_file = "sales.db";
     let conn = Connection::open(database_file)?;
-    conn.execute("DROP TABLE Sales", NO_PARAMS)?;
-    conn.execute("DROP TABLE Products", NO_PARAMS)?;
+    let _ = conn.execute("DROP TABLE Sales", NO_PARAMS);
+    let _ = conn.execute("DROP TABLE Products", NO_PARAMS);
     conn.execute(
         "CREATE TABLE Products (
             id INTEGER PRIMARY KEY,

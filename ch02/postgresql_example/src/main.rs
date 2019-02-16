@@ -1,5 +1,3 @@
-extern crate postgres;
-
 use postgres::{Connection, TlsMode, Result};
 use postgres::types::ToSql;
 
@@ -30,8 +28,8 @@ fn create_db() -> Result<Connection> {
             if database.len() == 0 { "" } else { "/" },
             database),
         TlsMode::None)?;
-    conn.execute("DROP TABLE Sales", &[])?;
-    conn.execute("DROP TABLE Products", &[])?;
+    let _ = conn.execute("DROP TABLE Sales", &[]);
+    let _ = conn.execute("DROP TABLE Products", &[]);
     conn.execute(
         "CREATE TABLE Products (
             id INTEGER PRIMARY KEY,

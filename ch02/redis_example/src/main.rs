@@ -8,10 +8,12 @@ fn main() -> redis::RedisResult<()> {
     conn.set("anotherKey", 4567)?;
     conn.set(45, 12345)?;
 
-    println!("{}, {}, {}.",
+    println!("{}, {}, {}, {:?}, {}.",
         conn.get::<_, String>("aKey")?,
         conn.get::<_, u64>("anotherKey")?,
-        conn.get::<_, u16>(45)?);
+        conn.get::<_, u16>(45)?,
+        conn.get::<_, String>(40),
+        conn.exists::<_, bool>(40)?);
 
     Ok(())
 }
