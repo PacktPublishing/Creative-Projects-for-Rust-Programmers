@@ -16,7 +16,7 @@
 // Uploading file "data*.txt" ... Uploaded file "data917.txt"
 // Invalid URI: "/a/b"
 
-use actix_web::{http, App, server, Responder, HttpRequest, HttpResponse};
+use actix_web::{http, server, App, HttpRequest, HttpResponse, Responder};
 
 fn delete_file(req: &HttpRequest) -> impl Responder {
     let info = req.match_info();
@@ -38,9 +38,7 @@ fn download_file(req: &HttpRequest) -> impl Responder {
     let contents = "Contents of the file.\n".to_string();
 
     println!("Downloaded file \"{}\"", filename);
-    HttpResponse::Ok()
-    .content_type("text/plain")
-    .body(contents)
+    HttpResponse::Ok().content_type("text/plain").body(contents)
 }
 
 fn upload_specified_file(req: &HttpRequest) -> impl Responder {
@@ -84,22 +82,16 @@ fn invalid_resource(req: &HttpRequest) -> impl Responder {
 fn main() {
     let server_address = "127.0.0.1:8080";
     println!("Listening at address {} ...", server_address);
-    server::new(
-        move || App::new()
-        .resource("/{filename}",
-            |r| {
-                r.method(http::Method::DELETE)
-                    .f(delete_file);
-                r.method(http::Method::GET)
-                    .f(download_file);
-                r.method(http::Method::PUT)
-                    .f(upload_specified_file);
-                r.method(http::Method::POST)
-                    .f(upload_new_file);
-            }
-        )
-        .default_resource(|r| r.f(invalid_resource))
-    )
+    server::new(move || {
+        App::new()
+            .resource("/{filename}", |r| {
+                r.method(http::Method::DELETE).f(delete_file);
+                r.method(http::Method::GET).f(download_file);
+                r.method(http::Method::PUT).f(upload_specified_file);
+                r.method(http::Method::POST).f(upload_new_file);
+            })
+            .default_resource(|r| r.f(invalid_resource))
+    })
     .bind(server_address)
     .unwrap()
     .run();

@@ -12,9 +12,7 @@ pub struct DbConnection {
 
 impl DbConnection {
     pub fn new() -> DbConnection {
-        DbConnection {
-            persons: vec![],
-        }
+        DbConnection { persons: vec![] }
     }
 
     pub fn get_all_persons_ids(&self) -> Vec<u32> {
@@ -25,14 +23,10 @@ impl DbConnection {
         Some(self.persons.iter().find(|p| p.id == id)?.name.clone())
     }
 
-    pub fn get_persons_by_partial_name(
-        &self, subname: &str) -> Vec<Person>
-    {
-        self
-            .persons
+    pub fn get_persons_by_partial_name(&self, subname: &str) -> Vec<Person> {
+        self.persons
             .iter()
             .filter(|p| p.name.contains(subname))
-            //.map(|p| (p.id, p.name.clone()))
             .map(|p| p.clone())
             .collect()
     }
@@ -40,15 +34,13 @@ impl DbConnection {
     pub fn insert_person(&mut self, name: String) -> u32 {
         let new_id = if self.persons.len() == 0 {
             1
-        }
-        else {
+        } else {
             self.persons[self.persons.len() - 1].id + 1
         };
-        self.persons.push(Person { id: new_id, name: name});
+        self.persons.push(Person {
+            id: new_id,
+            name: name,
+        });
         new_id
     }
-
-//    pub fn get_persons(&self) -> Vec<Person> {
-//        self.persons.clone()
-//    }
 }
