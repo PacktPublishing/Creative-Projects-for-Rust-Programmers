@@ -37,15 +37,15 @@ enum LocationSale {
 }
 
 fn main() {
-    let pathname = std::env::args().nth(1).unwrap();
-    let file = std::fs::File::open(pathname).unwrap();
-    let file = std::io::BufReader::new(file);
-    let mut product: Product = Default::default();
-    let mut sale: Sale = Default::default();
-    let parser = EventReader::new(file);
     let mut location_item = LocationItem::Other;
     let mut location_product = LocationProduct::Other;
     let mut location_sale = LocationSale::Other;
+    let pathname = std::env::args().nth(1).unwrap();
+    let mut product: Product = Default::default();
+    let mut sale: Sale = Default::default();
+    let file = std::fs::File::open(pathname).unwrap();
+    let file = std::io::BufReader::new(file);
+    let parser = EventReader::new(file);
     for event in parser {
         match &location_item {
             LocationItem::Other => match event {
