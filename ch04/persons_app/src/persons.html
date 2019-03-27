@@ -1,0 +1,41 @@
+<style>.error { color: #E00000 }</style>
+<h1>Persons</h1>
+<label class="error">{{id_error}}</label>
+<div>
+    <label>Id:</label>
+    <input id="person_id" type="number">
+    <button onclick="getPage(
+        '/page/edit_person/' + getElementById('person_id').value)"
+        >Find</button>
+</div>
+<div>
+    <label>Name portion:</label>
+    <input id="name_portion" type="text" value="{{partial_name}}"/>
+    <button onclick="getPage('/page/persons?partial_name=' + getElementById('name_portion').value)">Filter</button>
+</div>
+<div>
+    <button onclick="delete_selected_persons()">Delete Selected Persons</button>
+    <button onclick="getPage('/page/new_person')">Add New Person</button>
+</div>
+{% if persons %}
+    <table>
+        <thead>
+            <th></th>
+            <th></th>
+            <th>Id</th>
+            <th>Name</th>
+        </thead>
+        <tbody>
+            {% for p in persons %}
+                <tr>
+                    <td><input name="selector" id="{{p.id}}" type="checkbox"/></td>
+                    <td><button onclick="getPage('/page/edit_person/{{p.id}}')">Edit</button></td>
+                    <td>{{p.id}}</td>
+                    <td>{{p.name}}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% else %}
+    <p>No persons.</p>
+{% endif %}

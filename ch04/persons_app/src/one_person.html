@@ -1,0 +1,15 @@
+<h1>Person data</h1>
+<div>
+    <label>Id:</label>
+    <input id="person_id" type="number" value="{{ person_id }}" disabled>
+</div>
+<div>
+    <label>Name:</label>
+    <input id="person_name" type="text" value="{{ person_name }}"/>
+</div>
+{% if inserting %}
+    <button onclick="savePerson('POST')">Insert</button>
+{% else %}
+    <button onclick="savePerson('PUT')">Update</button>
+{% endif %}
+<button onclick="getPage('/page/persons')">Cancel</button>
