@@ -4,13 +4,12 @@
         <script>
             /*
             Two possible messages:
-            - REST api: returns data
-            - request of page: returns HTML code to assign to the body
+            - sendCommand: sends a specified REST command
+            - getPage: requests HTML code that will be assigned to the body
             */
-
             var username;
             var password;
-            function sendRest(method, uri, body, success, failure) {
+            function sendCommand(method, uri, body, success, failure) {
                 var xhttp = new XMLHttpRequest();
                 xhttp.onreadystatechange = function() {
                     if (this.readyState == 4)
@@ -38,12 +37,12 @@
                         if (items) items += ',' + item.id;
                         else items = '' + item.id;
                 if (items)
-                    sendRest('DELETE', '/persons?id_list=' + items, '',
+                    sendCommand('DELETE', '/persons?id_list=' + items, '',
                         function() { getPage('/page/persons'); },
                         function() { alert('Failed deletion.'); });
             }
             function savePerson(method, body) {
-                sendRest(method,
+                sendCommand(method,
                     '/one_person?'
                     + (method === 'POST' ? '' :
                     'id='
@@ -60,11 +59,6 @@
                     function() {
                         alert('Failed command.');
                     });
-                /*
-                )
-                + '&'
-                + 'other_field=287.98')">Insert</button>
-                */        
             }
         </script>
     </head>

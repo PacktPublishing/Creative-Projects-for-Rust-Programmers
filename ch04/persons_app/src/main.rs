@@ -1,7 +1,5 @@
 use actix_web::{http, server, App, HttpRequest, HttpResponse, Responder, Binary};
-//use serde_json::json;
 use std::sync::{Arc, Mutex};
-use actix_web::HttpMessage;
 use lazy_static::lazy_static;
 
 mod db_access;
@@ -11,15 +9,7 @@ struct AppState {
     db_conn: Arc<Mutex<db_access::DbConnection>>,
 }
 
-fn get_main(req: &HttpRequest<AppState>) -> impl Responder {
-    println!("### get_main");
-    println!("Path: \"{}\"", req.path());
-    println!("Method: \"{}\"", req.method());
-    println!("Content type: \"{}\"", req.content_type());
-    println!("Headers: \"{:?}\"", req.headers());
-    //println!("Payload: \"{:?}\"", req.payload());
-    println!("Query string: \"{}\"\n", req.query_string());
-    //let db_conn = req.state().db_conn.lock().unwrap();
+fn get_main(_req: &HttpRequest<AppState>) -> impl Responder {
     let context = tera::Context::new();
     HttpResponse::Ok()
         .content_type("text/html")
@@ -27,20 +17,10 @@ fn get_main(req: &HttpRequest<AppState>) -> impl Responder {
 }
 
 fn get_page_persons(req: &HttpRequest<AppState>) -> impl Responder {
-    println!("### get_persons");
-    println!("Path: \"{}\"", req.path());
-    println!("Method: \"{}\"", req.method());
-    println!("Content type: \"{}\"", req.content_type());
-    println!("Headers: \"{:?}\"", req.headers());
-    //println!("Payload: \"{:?}\"", req.payload());
-    println!("Query string: \"{}\"\n", req.query_string());
-    
     let partial_name = req.query().get("partial_name")
         .or(Some(&"".to_string())).unwrap().clone();
     let db_conn = req.state().db_conn.lock().unwrap();
     let person_list = db_conn.get_persons_by_partial_name(&partial_name);
-    println!("partial_name: {}, person_list: {:?}.", partial_name, person_list);
-
     let mut context = tera::Context::new();
     context.insert("id_error", &"");
     context.insert("partial_name", &partial_name);
@@ -51,13 +31,6 @@ fn get_page_persons(req: &HttpRequest<AppState>) -> impl Responder {
 }
 
 fn delete_persons(req: &HttpRequest<AppState>) -> impl Responder {
-    println!("### delete_persons");
-    println!("Path: \"{}\"", req.path());
-    println!("Method: \"{}\"", req.method());
-    println!("Content type: \"{}\"", req.content_type());
-    println!("Headers: \"{:?}\"", req.headers());
-    //println!("Payload: \"{:?}\"", req.payload());
-    println!("Query string: \"{}\"\n", req.query_string());
     let mut db_conn = req.state().db_conn.lock().unwrap();
     let mut deleted_count = 0;
     req
@@ -67,7 +40,6 @@ fn delete_persons(req: &HttpRequest<AppState>) -> impl Responder {
         .unwrap()
         .split_terminator(',')
         .for_each(|id| {
-            println!("Deleting: '{}'", id);
             deleted_count += if db_conn.delete_by_id(id.parse::<u32>().unwrap()) {
                 1
             }
@@ -78,20 +50,11 @@ fn delete_persons(req: &HttpRequest<AppState>) -> impl Responder {
     deleted_count.to_string()
 }
 
-fn get_page_new_person(req: &HttpRequest<AppState>) -> impl Responder {
-    println!("### get_person_new");
-    println!("Path: \"{}\"", req.path());
-    println!("Method: \"{}\"", req.method());
-    println!("Content type: \"{}\"", req.content_type());
-    println!("Headers: \"{:?}\"", req.headers());
-    //println!("Payload: \"{:?}\"", req.payload());
-    println!("Query string: \"{}\"\n", req.query_string());
-
+fn get_page_new_person(_req: &HttpRequest<AppState>) -> impl Responder {
     let mut context = tera::Context::new();
     context.insert("person_id", &"");
     context.insert("person_name", &"");
     context.insert("inserting", &true);
-
     HttpResponse::Ok()
         .content_type("text/html")
         .body(TERA.render("one_person.html", &context).unwrap())
@@ -100,13 +63,6 @@ fn get_page_new_person(req: &HttpRequest<AppState>) -> impl Responder {
 fn get_page_edit_person(req: &HttpRequest<AppState>) -> impl Responder {
     let info = req.match_info();
     let id = info.get_decoded("id").unwrap();
-    println!("### get_person_by_id: {}", id);
-    println!("Path: \"{}\"", req.path());
-    println!("Method: \"{}\"", req.method());
-    println!("Content type: \"{}\"", req.content_type());
-    println!("Headers: \"{:?}\"", req.headers());
-    //println!("Payload: \"{:?}\"", req.payload());
-    println!("Query string: \"{}\"\n", req.query_string());
     let db_conn = req.state().db_conn.lock().unwrap();
     let mut context = tera::Context::new();
     if let Ok(id_n) = id.parse::<u32>() {
@@ -130,13 +86,6 @@ fn get_page_edit_person(req: &HttpRequest<AppState>) -> impl Responder {
 }
 
 fn insert_person(req: &HttpRequest<AppState>) -> impl Responder {
-    println!("### insert_person");
-    println!("Path: \"{}\"", req.path());
-    println!("Method: \"{}\"", req.method());
-    println!("Content type: \"{}\"", req.content_type());
-    println!("Headers: \"{:?}\"", req.headers());
-    println!("Payload: \"{:?}\"", req.payload());
-    println!("Query string: \"{}\"\n", req.query_string());
     let mut db_conn = req.state().db_conn.lock().unwrap();
     let mut inserted_count = 0;
     if let Some(name) = req.query().get("name") {
@@ -147,13 +96,6 @@ fn insert_person(req: &HttpRequest<AppState>) -> impl Responder {
 }
 
 fn update_person(req: &HttpRequest<AppState>) -> impl Responder {
-    println!("### update_person");
-    println!("Path: \"{}\"", req.path());
-    println!("Method: \"{}\"", req.method());
-    println!("Content type: \"{}\"", req.content_type());
-    println!("Headers: \"{:?}\"", req.headers());
-    //println!("Payload: \"{:?}\"", req.payload());
-    println!("Query string: \"{}\"\n", req.query_string());
     let mut db_conn = req.state().db_conn.lock().unwrap();
     let mut updated_count = 0;
     let id = req.query().get("id").or(Some(&"0".to_string()))
@@ -170,22 +112,12 @@ fn update_person(req: &HttpRequest<AppState>) -> impl Responder {
 }
 
 fn get_favicon(_req: &HttpRequest<AppState>) -> impl Responder {
-    println!("### get_favicon");
     HttpResponse::Ok()
         .content_type("image/x-icon")
         .body(Binary::from_slice(include_bytes!("favicon.ico")))
 }
 
 fn invalid_resource(req: &HttpRequest<AppState>) -> impl Responder {
-    use actix_web::HttpMessage;
-    println!("### invalid_resource: \"{}\"", req.uri());
-    println!("Path: \"{}\"", req.path());
-    println!("Method: \"{}\"", req.method());
-    println!("Content type: \"{}\"", req.content_type());
-    println!("Headers: \"{:?}\"", req.headers());
-    //println!("Payload: \"{:?}\"", req.payload());
-    println!("Query string: \"{}\"\n", req.query_string());
-
     let db_conn = req.state().db_conn.lock().unwrap();    
     let mut context = tera::Context::new();
     context.insert("id_error", &"Invalid request.");
@@ -204,23 +136,6 @@ lazy_static! {
 }
 
 fn main() {
-    /*
-    use sodiumoxide::crypto::secretbox;
-    sodiumoxide::init();
-    let key = secretbox::gen_key();
-    let nonce = secretbox::gen_nonce();
-    println!("{} {}", std::mem::size_of_val(&key), std::mem::size_of_val(&nonce));
-    let plaintext = "1234567890:carlo.milanesi";
-    println!("[{}]", plaintext);
-    let ciphertext = secretbox::seal(plaintext.as_bytes(), &nonce, &key);
-    println!("[{}]", base64::encode(&ciphertext));
-    let their_plaintext = std::str::from_utf8(&secretbox::open(&ciphertext, &nonce, &key).unwrap()).unwrap().to_string();
-    println!("[{}]", their_plaintext);
-    assert!(plaintext == &their_plaintext[..]);
-    return;
-    */
-
-    //use http::Method;
     let server_address = "127.0.0.1:8080";
     println!("Listening at address {}", server_address);
     let db_conn = Arc::new(Mutex::new(
@@ -251,34 +166,34 @@ fn main() {
             // Get the page to manage the persons,
             // showing all the persons whose name contains
             // a string specified in the query argument "partial_name".
-            r.method(http::Method::GET).f(get_page_persons);//TODO
+            r.method(http::Method::GET).f(get_page_persons);
         })
         .resource("/persons", |r| {
             // Delete the persons specified in the query argument
             // "id_to_delete" as a comma-separated list of numbers,
             // and return the number of persons deleted.
-            r.method(http::Method::DELETE).f(delete_persons);//TODO
+            r.method(http::Method::DELETE).f(delete_persons);
         })
         .resource("/page/new_person", |r| {
             // Get the page to insert a new person.
-            r.method(http::Method::GET).f(get_page_new_person);//TODO
+            r.method(http::Method::GET).f(get_page_new_person);
         })
         .resource("/page/edit_person/{id}", |r| {
             // Get the page to show and edit the existing person
             // having the specified id,
             // or a NotFound state if does not exist.
-            r.method(http::Method::GET).f(get_page_edit_person);//TODO
+            r.method(http::Method::GET).f(get_page_edit_person);
         })
         .resource("/one_person", |r| {
             // Insert a person having as name the string specified
             // in the query argument "name",
             // and return the number of persons inserted (1 or 0).
-            r.method(http::Method::POST).f(insert_person);//TODO
+            r.method(http::Method::POST).f(insert_person);
             // Save the person having the id specified in the path
             // setting as its name the string specified
             // in the query argument "name",
             // and return the number of persons updated (1 or 0).
-            r.method(http::Method::PUT).f(update_person);//TODO
+            r.method(http::Method::PUT).f(update_person);
         })
         .resource("/favicon.ico", |r| {
             // Get the App icon.

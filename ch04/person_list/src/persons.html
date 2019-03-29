@@ -1,0 +1,25 @@
+<h1>Persons</h1>
+<div>
+    <label>Name portion:</label>
+    <input id="name_portion" type="text" value="{{partial_name}}"/>
+    <button onclick="getPage('/page/persons?partial_name='
+        + getElementById('name_portion').value)">Filter</button>
+</div>
+{% if persons %}
+    <table>
+        <thead>
+            <th>Id</th>
+            <th>Name</th>
+        </thead>
+        <tbody>
+            {% for p in persons %}
+                <tr>
+                    <td>{{p.id}}</td>
+                    <td>{{p.name}}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% else %}
+    <p>No persons.</p>
+{% endif %}
