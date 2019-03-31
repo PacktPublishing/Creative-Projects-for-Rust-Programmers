@@ -219,9 +219,7 @@ fn invalid_resource(_req: &HttpRequest<AppState>) -> impl Responder {
 
 lazy_static! {
     pub static ref TERA: tera::Tera = {
-        let mut tera = tera::compile_templates!("src/*.html");
-        tera.add_template_file("src/main.js", None).unwrap();
-        tera
+        tera::compile_templates!("templates/**/*")
     };
 }
 

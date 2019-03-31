@@ -40,12 +40,8 @@ fn delete_persons(req: &HttpRequest<AppState>) -> impl Responder {
         .unwrap()
         .split_terminator(',')
         .for_each(|id| {
-            deleted_count += if db_conn.delete_by_id(id.parse::<u32>().unwrap()) {
-                1
-            }
-            else {
-                0
-            };
+            deleted_count += if db_conn.delete_by_id(
+                id.parse::<u32>().unwrap()) { 1 } else { 0 };
         });
     deleted_count.to_string()
 }
@@ -102,12 +98,7 @@ fn update_person(req: &HttpRequest<AppState>) -> impl Responder {
         .unwrap().parse::<u32>().unwrap();
     let name = req.query().get("name").or(Some(&"".to_string())).unwrap().clone();
     updated_count += if db_conn.update_person(
-        Person { id: id, name: name }) {
-            1
-        }
-        else {
-            0
-        };
+        Person { id: id, name: name }) { 1 } else { 0 };
     updated_count.to_string()
 }
 
@@ -131,7 +122,7 @@ fn invalid_resource(req: &HttpRequest<AppState>) -> impl Responder {
 
 lazy_static! {
     pub static ref TERA: tera::Tera = {
-        tera::compile_templates!("src/*.html")
+        tera::compile_templates!("templates/**/*")
     };
 }
 
@@ -141,18 +132,6 @@ fn main() {
     let db_conn = Arc::new(Mutex::new(
         db_access::DbConnection::new()
     ));
-    // GET    /persons            Go to the persons page, with the persons filtered
-    //        query: partial_name
-    // GET    /new_person        Go to the one-person page, to insert a new person
-    //        query: ---
-    // GET    /edit_person/{id}    Go to the one-person page, to show/edit a specifid existing person
-    //        query: ---
-    // POST    /one_person         Insert a person, and go to persons page
-    //        query: ---
-    // PUT     /one_person         Update a person, and go to persons page
-    //        query: partial_name
-    // DELETE  /persons            Delete all the selected persons, and go to persons page
-    //        query: partial_name
     server::new(move || {
         App::with_state(AppState {
             db_conn: db_conn.clone(),

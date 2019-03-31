@@ -1,5 +1,5 @@
 [package]
-name = "person_list"
+name = "auth"
 version = "0.1.0"
 authors = []
 edition = "2018"
@@ -10,3 +10,4 @@ lazy_static = "1.2"
 tera = "0.11"
 serde = "1.0"
 serde_derive = "1.0"
+actix-web-httpauth = "0.1"

@@ -42,11 +42,15 @@ fn invalid_resource(_req: &HttpRequest<AppState>) -> impl Responder {
 
 lazy_static! {
     pub static ref TERA: tera::Tera = {
-        tera::compile_templates!("src/*.html")
+        tera::compile_templates!("templates/**/*")
     };
 }
 
 fn main() {
+    let mut context = tera::Context::new();
+    context.insert("id", &7834);
+    println!("[{}]", TERA.render("Identifier: {{id}}.", &context).unwrap())
+
     let server_address = "127.0.0.1:8080";
     println!("Listening at address {}", server_address);
     let db_conn = Arc::new(Mutex::new(
