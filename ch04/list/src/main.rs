@@ -17,7 +17,7 @@ fn get_main(_req: &HttpRequest<AppState>) -> impl Responder {
 
 fn get_page_persons(req: &HttpRequest<AppState>) -> impl Responder {
     let partial_name = req.query().get("partial_name")
-        .or(Some(&"".to_string())).unwrap().clone();
+        .unwrap_or(&"".to_string()).clone();
     let db_conn = req.state().db_conn.lock().unwrap();
     let person_list = db_conn.get_persons_by_partial_name(&partial_name);
     let mut context = tera::Context::new();
@@ -47,10 +47,6 @@ lazy_static! {
 }
 
 fn main() {
-    let mut context = tera::Context::new();
-    context.insert("id", &7834);
-    println!("[{}]", TERA.render("Identifier: {{id}}.", &context).unwrap())
-
     let server_address = "127.0.0.1:8080";
     println!("Listening at address {}", server_address);
     let db_conn = Arc::new(Mutex::new(

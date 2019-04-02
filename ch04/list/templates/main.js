@@ -7,5 +7,5 @@ function getPage(uri) {
         }
     };
     xhttp.open('GET', uri, true);
-    xhttp.send(body);
+    xhttp.send();
 }

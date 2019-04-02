@@ -2,3 +2,4 @@ This file contains some names:
 {% for pers in persons %}
 * {{pers.name}}
 {% endfor %}
+{% include "footer.txt" %}

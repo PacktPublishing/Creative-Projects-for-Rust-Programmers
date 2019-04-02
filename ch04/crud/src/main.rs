@@ -18,7 +18,7 @@ fn get_main(_req: &HttpRequest<AppState>) -> impl Responder {
 
 fn get_page_persons(req: &HttpRequest<AppState>) -> impl Responder {
     let partial_name = req.query().get("partial_name")
-        .or(Some(&"".to_string())).unwrap().clone();
+        .unwrap_or(&"".to_string()).clone();
     let db_conn = req.state().db_conn.lock().unwrap();
     let person_list = db_conn.get_persons_by_partial_name(&partial_name);
     let mut context = tera::Context::new();
@@ -36,8 +36,7 @@ fn delete_persons(req: &HttpRequest<AppState>) -> impl Responder {
     req
         .query()
         .get("id_list")
-        .or(Some(&"".to_string()))
-        .unwrap()
+        .unwrap_or(&"".to_string())
         .split_terminator(',')
         .for_each(|id| {
             deleted_count += if db_conn.delete_by_id(
@@ -94,9 +93,9 @@ fn insert_person(req: &HttpRequest<AppState>) -> impl Responder {
 fn update_person(req: &HttpRequest<AppState>) -> impl Responder {
     let mut db_conn = req.state().db_conn.lock().unwrap();
     let mut updated_count = 0;
-    let id = req.query().get("id").or(Some(&"0".to_string()))
-        .unwrap().parse::<u32>().unwrap();
-    let name = req.query().get("name").or(Some(&"".to_string())).unwrap().clone();
+    let id = req.query().get("id").unwrap_or(&"0".to_string())
+        .parse::<u32>().unwrap();
+    let name = req.query().get("name").unwrap_or(&"".to_string()).clone();
     updated_count += if db_conn.update_person(
         Person { id: id, name: name }) { 1 } else { 0 };
     updated_count.to_string()
