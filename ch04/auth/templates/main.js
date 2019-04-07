@@ -3,9 +3,9 @@ The client can send two possible kinds of messages:
 - sendCommand: sends a specified REST command
 - getPage: requests HTML code that will be assigned to the body
 */
-var username;
+var username = '';
 
-var password;
+var password = '';
 
 function sendCommand(method, uri, body, success, failure) {
     var xhttp = new XMLHttpRequest();
@@ -16,7 +16,7 @@ function sendCommand(method, uri, body, success, failure) {
     };
     xhttp.open(method, uri, true);
     xhttp.setRequestHeader("Authorization",
-        "Basic " + btoa(username + ":" + password))
+        "Basic " + btoa(username + ":" + password));
     xhttp.send(body);
 }
 
@@ -27,13 +27,14 @@ function getPage(uri) {
             document.getElementById('body')
                 .innerHTML = xhttp.responseText;
             var cur_user = document.getElementById('current_user');
-            cur_user.innerHTML = cur_user && username ? username : '---';
+            if (cur_user)
+                cur_user.innerHTML = username ? username : '---';
         }
     };
     xhttp.open('GET', uri, true);
     xhttp.setRequestHeader("Authorization",
-        "Basic " + btoa(username + ":" + password))
-    xhttp.send(body);
+        "Basic " + btoa(username + ":" + password));
+    xhttp.send();
 }
 
 function delete_selected_persons() {
@@ -48,7 +49,7 @@ function delete_selected_persons() {
             function() { alert('Failed deletion.'); });
 }
 
-function savePerson(method, body) {
+function savePerson(method) {
     sendCommand(method,
         '/one_person?'
         + (method === 'POST' ? '' :
@@ -59,7 +60,7 @@ function savePerson(method, body) {
         + encodeURIComponent(
             document.getElementById('person_name')
             .value),
-        body,
+        '',
         function() {
             getPage('/page/persons');
         },

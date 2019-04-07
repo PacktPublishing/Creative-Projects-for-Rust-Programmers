@@ -7,10 +7,7 @@ pub struct Person {
 }
 
 #[derive(Serialize, Clone, Copy, PartialEq, Debug)]
-pub enum DbPrivilege {
-    CanRead,
-    CanWrite,
-}
+pub enum DbPrivilege { CanRead, CanWrite }
 
 #[derive(Serialize, Clone, Debug)]
 pub struct User {
@@ -58,7 +55,8 @@ impl DbConnection {
         else { None }
     }
 
-    pub fn get_persons_by_partial_name(&self, subname: &str) -> Vec<Person> {
+    pub fn get_persons_by_partial_name(&self, subname: &str)
+        -> Vec<Person> {
         self.persons
             .iter()
             .filter(|p| p.name.contains(subname))
@@ -86,8 +84,11 @@ impl DbConnection {
     }
 
     pub fn update_person(&mut self, person: Person) -> bool {
-        if let Some((n, _)) = self.persons.iter()
-            .enumerate().find(|(_, p)| p.id == person.id)
+        if let Some((n, _)) = self
+            .persons
+            .iter()
+            .enumerate()
+            .find(|(_, p)| p.id == person.id)
         {
             self.persons[n] = person;
             true

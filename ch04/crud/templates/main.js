@@ -1,5 +1,5 @@
 /*
-Two possible messages:
+The client can send two possible kinds of messages:
 - sendCommand: sends a specified REST command
 - getPage: requests HTML code that will be assigned to the body
 */
@@ -23,7 +23,7 @@ function getPage(uri) {
         }
     };
     xhttp.open('GET', uri, true);
-    xhttp.send(body);
+    xhttp.send();
 }
 
 function delete_selected_persons() {
@@ -38,7 +38,7 @@ function delete_selected_persons() {
             function() { alert('Failed deletion.'); });
 }
 
-function savePerson(method, body) {
+function savePerson(method) {
     sendCommand(method,
         '/one_person?'
         + (method === 'POST' ? '' :
@@ -49,7 +49,7 @@ function savePerson(method, body) {
         + encodeURIComponent(
             document.getElementById('person_name')
             .value),
-        body,
+        '',
         function() {
             getPage('/page/persons');
         },

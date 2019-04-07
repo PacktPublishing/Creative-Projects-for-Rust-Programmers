@@ -1,6 +1,6 @@
-use actix_web::{http, server, App, HttpRequest, HttpResponse, Responder, Binary};
-use std::sync::{Arc, Mutex};
+use actix_web::{http, server, App, Binary, HttpRequest, HttpResponse, Responder};
 use lazy_static::lazy_static;
+use std::sync::{Arc, Mutex};
 
 mod db_access;
 
@@ -16,8 +16,11 @@ fn get_main(_req: &HttpRequest<AppState>) -> impl Responder {
 }
 
 fn get_page_persons(req: &HttpRequest<AppState>) -> impl Responder {
-    let partial_name = req.query().get("partial_name")
-        .unwrap_or(&"".to_string()).clone();
+    let partial_name = req
+        .query()
+        .get("partial_name")
+        .unwrap_or(&"".to_string())
+        .clone();
     let db_conn = req.state().db_conn.lock().unwrap();
     let person_list = db_conn.get_persons_by_partial_name(&partial_name);
     let mut context = tera::Context::new();
@@ -41,17 +44,13 @@ fn invalid_resource(_req: &HttpRequest<AppState>) -> impl Responder {
 }
 
 lazy_static! {
-    pub static ref TERA: tera::Tera = {
-        tera::compile_templates!("templates/**/*")
-    };
+    pub static ref TERA: tera::Tera = { tera::compile_templates!("templates/**/*") };
 }
 
 fn main() {
     let server_address = "127.0.0.1:8080";
     println!("Listening at address {}", server_address);
-    let db_conn = Arc::new(Mutex::new(
-        db_access::DbConnection::new()
-    ));
+    let db_conn = Arc::new(Mutex::new(db_access::DbConnection::new()));
     server::new(move || {
         App::with_state(AppState {
             db_conn: db_conn.clone(),

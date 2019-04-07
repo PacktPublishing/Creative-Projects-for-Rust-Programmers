@@ -10,7 +10,8 @@
 <div>
     <label>Name portion:</label>
     <input id="name_portion" type="text" value="{{partial_name}}"/>
-    <button onclick="getPage('/page/persons?partial_name=' + getElementById('name_portion').value)">Filter</button>
+    <button onclick="getPage('/page/persons?partial_name=' +
+        getElementById('name_portion').value)">Filter</button>
 </div>
 <div>
     <button onclick="delete_selected_persons()">Delete Selected Persons</button>

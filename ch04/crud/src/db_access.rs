@@ -15,16 +15,6 @@ impl DbConnection {
         DbConnection { persons: vec![] }
     }
 
-/*
-    pub fn get_all_persons_ids(&self) -> Vec<u32> {
-        self.persons.iter().map(|p| p.id).collect()
-    }
-*/
-/*
-    pub fn get_person_name_by_id(&self, id: u32) -> Option<String> {
-        Some(self.persons.iter().find(|p| p.id == id)?.name.clone())
-    }
-*/
     pub fn get_person_by_id(&self, id: u32) -> Option<&Person> {
         if let Some(p) = self.persons.iter().find(|p| p.id == id) {
             Some(p)
@@ -32,7 +22,8 @@ impl DbConnection {
         else { None }
     }
 
-    pub fn get_persons_by_partial_name(&self, subname: &str) -> Vec<Person> {
+    pub fn get_persons_by_partial_name(&self, subname: &str)
+        -> Vec<Person> {
         self.persons
             .iter()
             .filter(|p| p.name.contains(subname))
@@ -60,8 +51,11 @@ impl DbConnection {
     }
 
     pub fn update_person(&mut self, person: Person) -> bool {
-        if let Some((n, _)) = self.persons.iter()
-            .enumerate().find(|(_, p)| p.id == person.id)
+        if let Some((n, _)) = self
+            .persons
+            .iter()
+            .enumerate()
+            .find(|(_, p)| p.id == person.id)
         {
             self.persons[n] = person;
             true

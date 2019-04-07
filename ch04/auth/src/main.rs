@@ -51,19 +51,6 @@ fn get_main(_req: &HttpRequest<AppState>) -> impl Responder {
         .body(TERA.render("main.html", &context).unwrap())
 }
 
-fn get_page_login(req: &HttpRequest<AppState>) -> HttpResponse {
-    get_page_login_with_message(req, "")
-}
-
-fn get_page_login_with_message(_req: &HttpRequest<AppState>,
-    error_message: &str) -> HttpResponse {
-    let mut context = tera::Context::new();
-    context.insert("error_message", error_message);
-    HttpResponse::Ok()
-        .content_type("text/html")
-        .body(TERA.render("login.html", &context).unwrap())
-}
-
 fn get_page_persons(req: &HttpRequest<AppState>) -> HttpResponse {
     match check_credentials(req, DbPrivilege::CanRead) {
         Ok(privileges) =>  {
@@ -72,11 +59,11 @@ fn get_page_persons(req: &HttpRequest<AppState>) -> HttpResponse {
             let db_conn = req.state().db_conn.lock().unwrap();
             let person_list = db_conn.get_persons_by_partial_name(&partial_name);
             let mut context = tera::Context::new();
+            context.insert("can_write",
+                &privileges.contains(&DbPrivilege::CanWrite));
             context.insert("id_error", &"");
             context.insert("partial_name", &partial_name);
             context.insert("persons", &person_list);
-            context.insert("can_write",
-                &privileges.contains(&DbPrivilege::CanWrite));
             HttpResponse::Ok()
                 .content_type("text/html")
                 .body(TERA.render("persons.html", &context).unwrap())
@@ -96,12 +83,8 @@ fn delete_persons(req: &HttpRequest<AppState>) -> HttpResponse {
                 .unwrap_or(&"".to_string())
                 .split_terminator(',')
                 .for_each(|id| {
-                    deleted_count += if db_conn.delete_by_id(id.parse::<u32>().unwrap()) {
-                        1
-                    }
-                    else {
-                        0
-                    };
+                    deleted_count += if db_conn.delete_by_id(
+                        id.parse::<u32>().unwrap()) { 1 } else { 0 };
                 });
             HttpResponse::Ok()
                 .content_type("text/plain")
@@ -115,11 +98,11 @@ fn get_page_new_person(req: &HttpRequest<AppState>) -> HttpResponse {
     match check_credentials(req, DbPrivilege::CanWrite) {
         Ok(privileges) =>  {
             let mut context = tera::Context::new();
+            context.insert("can_write",
+                &privileges.contains(&DbPrivilege::CanWrite));
             context.insert("person_id", &"");
             context.insert("person_name", &"");
             context.insert("inserting", &true);
-            context.insert("can_write",
-                &privileges.contains(&DbPrivilege::CanWrite));
             HttpResponse::Ok()
                 .content_type("text/html")
                 .body(TERA.render("one_person.html", &context).unwrap())
@@ -135,13 +118,13 @@ fn get_page_edit_person(req: &HttpRequest<AppState>) -> HttpResponse {
             let id = info.get_decoded("id").unwrap();
             let db_conn = req.state().db_conn.lock().unwrap();
             let mut context = tera::Context::new();
+            context.insert("can_write",
+                &privileges.contains(&DbPrivilege::CanWrite));
             if let Ok(id_n) = id.parse::<u32>() {
                 if let Some(person) = db_conn.get_person_by_id(id_n) {
                     context.insert("person_id", &id);
                     context.insert("person_name", &person.name);
                     context.insert("inserting", &false);
-                    context.insert("can_write",
-                        &privileges.contains(&DbPrivilege::CanWrite));
                     return HttpResponse::Ok()
                         .content_type("text/html")
                         .body(TERA.render("one_person.html", &context).unwrap());
@@ -186,12 +169,7 @@ fn update_person(req: &HttpRequest<AppState>) -> HttpResponse {
                 .parse::<u32>().unwrap();
             let name = req.query().get("name").unwrap_or(&"".to_string()).clone();
             updated_count += if db_conn.update_person(
-                Person { id: id, name: name }) {
-                    1
-                }
-                else {
-                    0
-                };
+                Person { id: id, name: name }) { 1 } else { 0 };
             HttpResponse::Ok()
                 .content_type("text/plain")
                 .body(updated_count.to_string())
@@ -208,10 +186,10 @@ fn get_favicon(_req: &HttpRequest<AppState>) -> HttpResponse {
 
 fn invalid_resource(_req: &HttpRequest<AppState>) -> impl Responder {
     let mut context = tera::Context::new();
+    context.insert("can_write", &false);
     context.insert("id_error", &"Invalid request.");
     context.insert("partial_name", &"");
     context.insert("persons", &Vec::<Person>::new());
-    context.insert("can_write", &false);
     HttpResponse::Ok()
         .content_type("text/html")
         .body(TERA.render("persons.html", &context).unwrap())
@@ -221,6 +199,19 @@ lazy_static! {
     pub static ref TERA: tera::Tera = {
         tera::compile_templates!("templates/**/*")
     };
+}
+
+fn get_page_login(req: &HttpRequest<AppState>) -> HttpResponse {
+    get_page_login_with_message(req, "")
+}
+
+fn get_page_login_with_message(_req: &HttpRequest<AppState>,
+    error_message: &str) -> HttpResponse {
+    let mut context = tera::Context::new();
+    context.insert("error_message", error_message);
+    HttpResponse::Ok()
+        .content_type("text/html")
+        .body(TERA.render("login.html", &context).unwrap())
 }
 
 fn main() {

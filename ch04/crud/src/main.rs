@@ -1,6 +1,6 @@
-use actix_web::{http, server, App, HttpRequest, HttpResponse, Responder, Binary};
-use std::sync::{Arc, Mutex};
+use actix_web::{http, server, App, Binary, HttpRequest, HttpResponse, Responder};
 use lazy_static::lazy_static;
+use std::sync::{Arc, Mutex};
 
 mod db_access;
 use db_access::Person;
@@ -17,8 +17,11 @@ fn get_main(_req: &HttpRequest<AppState>) -> impl Responder {
 }
 
 fn get_page_persons(req: &HttpRequest<AppState>) -> impl Responder {
-    let partial_name = req.query().get("partial_name")
-        .unwrap_or(&"".to_string()).clone();
+    let partial_name = req
+        .query()
+        .get("partial_name")
+        .unwrap_or(&"".to_string())
+        .clone();
     let db_conn = req.state().db_conn.lock().unwrap();
     let person_list = db_conn.get_persons_by_partial_name(&partial_name);
     let mut context = tera::Context::new();
@@ -33,8 +36,7 @@ fn get_page_persons(req: &HttpRequest<AppState>) -> impl Responder {
 fn delete_persons(req: &HttpRequest<AppState>) -> impl Responder {
     let mut db_conn = req.state().db_conn.lock().unwrap();
     let mut deleted_count = 0;
-    req
-        .query()
+    req.query()
         .get("id_list")
         .unwrap_or(&"".to_string())
         .split_terminator(',')
@@ -84,8 +86,10 @@ fn insert_person(req: &HttpRequest<AppState>) -> impl Responder {
     let mut db_conn = req.state().db_conn.lock().unwrap();
     let mut inserted_count = 0;
     if let Some(name) = req.query().get("name") {
-        inserted_count += db_conn.insert_person(
-            Person { id: 0, name: name.clone() });
+        inserted_count += db_conn.insert_person(Person {
+            id: 0,
+            name: name.clone(),
+        });
     }
     inserted_count.to_string()
 }
@@ -93,8 +97,12 @@ fn insert_person(req: &HttpRequest<AppState>) -> impl Responder {
 fn update_person(req: &HttpRequest<AppState>) -> impl Responder {
     let mut db_conn = req.state().db_conn.lock().unwrap();
     let mut updated_count = 0;
-    let id = req.query().get("id").unwrap_or(&"0".to_string())
-        .parse::<u32>().unwrap();
+    let id = req
+        .query()
+        .get("id")
+        .unwrap_or(&"0".to_string())
+        .parse::<u32>()
+        .unwrap();
     let name = req.query().get("name").unwrap_or(&"".to_string()).clone();
     updated_count += if db_conn.update_person(
         Person { id: id, name: name }) { 1 } else { 0 };
@@ -108,7 +116,7 @@ fn get_favicon(_req: &HttpRequest<AppState>) -> impl Responder {
 }
 
 fn invalid_resource(req: &HttpRequest<AppState>) -> impl Responder {
-    let db_conn = req.state().db_conn.lock().unwrap();    
+    let db_conn = req.state().db_conn.lock().unwrap();
     let mut context = tera::Context::new();
     context.insert("id_error", &"Invalid request.");
     context.insert("partial_name", &"");
