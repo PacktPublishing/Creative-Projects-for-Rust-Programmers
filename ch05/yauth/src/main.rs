@@ -1,15 +1,15 @@
-#![recursion_limit="128"]
+#![recursion_limit = "128"]
 use yew::{html, Component, ComponentLink, Html, Renderable, ShouldRender};
 
 mod db_access;
-use db_access::{DbConnection, User, DbPrivilege, Person};
-use crate::login::{LoginModel};
-use crate::persons_list::{PersonsListModel};
-use crate::one_person::{OnePersonModel};
+use crate::login::LoginModel;
+use crate::one_person::OnePersonModel;
+use crate::persons_list::PersonsListModel;
+use db_access::{DbConnection, DbPrivilege, Person, User};
 
 mod login;
-mod persons_list;
 mod one_person;
+mod persons_list;
 
 enum Page {
     Login,
@@ -51,13 +51,10 @@ impl Component for MainModel {
                 self.page = Page::PersonsList;
                 self.current_user = Some(user.username);
                 self.can_write = user.privileges.contains(&DbPrivilege::CanWrite);
-            },
-            MainMsg::ChangeUserPressed =>
-                self.page = Page::Login,
-            MainMsg::GoToOnePersonPage(person) =>
-                self.page = Page::OnePerson(person),
-            MainMsg::GoToPersonsListPage =>
-                self.page = Page::PersonsList,            
+            }
+            MainMsg::ChangeUserPressed => self.page = Page::Login,
+            MainMsg::GoToOnePersonPage(person) => self.page = Page::OnePerson(person),
+            MainMsg::GoToPersonsListPage => self.page = Page::PersonsList,
         }
         true
     }

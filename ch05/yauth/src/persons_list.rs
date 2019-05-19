@@ -1,4 +1,4 @@
-use yew::services::{DialogService};
+use yew::services::DialogService;
 use yew::{html, Callback, Component, ComponentLink, Html, Renderable, ShouldRender};
 
 use crate::db_access::{DbConnection, Person};
@@ -58,34 +58,32 @@ impl Component for PersonsListModel {
             go_to_one_person_page: props.go_to_one_person_page,
             db_connection: props.db_connection.unwrap(),
         };
-        model.filtered_persons = model.db_connection.borrow()
-            .get_persons_by_partial_name("");
+        model.filtered_persons = model.db_connection.borrow().get_persons_by_partial_name("");
         model
     }
 
     fn update(&mut self, msg: Self::Message) -> ShouldRender {
         match msg {
-            PersonsListMsg::IdChanged(id_str) =>
-                self.id_to_find = id_str.parse::<u32>().ok(),
-            PersonsListMsg::FindPressed => {
-                match self.id_to_find {
-                    Some(id) => {
-                        self.update(PersonsListMsg::EditPressed(id));
-                    },
-                    None => {
-                        self.dialog.alert("No id specified.");
-                    },
+            PersonsListMsg::IdChanged(id_str) => self.id_to_find = id_str.parse::<u32>().ok(),
+            PersonsListMsg::FindPressed => match self.id_to_find {
+                Some(id) => {
+                    self.update(PersonsListMsg::EditPressed(id));
+                }
+                None => {
+                    self.dialog.alert("No id specified.");
                 }
             },
-            PersonsListMsg::PartialNameChanged(s) =>
-                self.name_portion = s,
+            PersonsListMsg::PartialNameChanged(s) => self.name_portion = s,
             PersonsListMsg::FilterPressed => {
-                self.filtered_persons = self.db_connection.borrow()
+                self.filtered_persons = self
+                    .db_connection
+                    .borrow()
                     .get_persons_by_partial_name(&self.name_portion);
-            },
+            }
             PersonsListMsg::DeletePressed => {
-                if self.dialog.confirm(
-                    "Do you confirm to delete the selected persons?")
+                if self
+                    .dialog
+                    .confirm("Do you confirm to delete the selected persons?")
                 {
                     {
                         let mut db = self.db_connection.borrow_mut();
@@ -96,30 +94,29 @@ impl Component for PersonsListModel {
                     self.update(PersonsListMsg::FilterPressed);
                     self.dialog.alert("Deleted.");
                 }
-            },
+            }
             PersonsListMsg::AddPressed => {
                 if let Some(ref go_to_page) = self.go_to_one_person_page {
                     go_to_page.emit(None);
                 }
-            },
+            }
             PersonsListMsg::SelectionToggled(id) => {
                 if self.selected_ids.contains(&id) {
                     self.selected_ids.remove(&id);
-                }
-                else {
+                } else {
                     self.selected_ids.insert(id);
                 }
-            },
+            }
             PersonsListMsg::EditPressed(id) => {
-                match self.db_connection.borrow()
-                    .get_person_by_id(id) {
-                    Some(person) =>
+                match self.db_connection.borrow().get_person_by_id(id) {
+                    Some(person) => {
                         if let Some(ref go_to_page) = self.go_to_one_person_page {
                             go_to_page.emit(Some(person.clone()));
                         }
+                    }
                     None => self.dialog.alert("No person found with the indicated id."),
                 }
-            },
+            }
         }
         true
     }
@@ -128,8 +125,7 @@ impl Component for PersonsListModel {
         self.can_write = props.can_write;
         self.go_to_one_person_page = props.go_to_one_person_page;
         self.db_connection = props.db_connection.unwrap();
-        self.filtered_persons = self.db_connection.borrow()
-            .get_persons_by_partial_name("");
+        self.filtered_persons = self.db_connection.borrow().get_persons_by_partial_name("");
         true
     }
 }
@@ -175,7 +171,7 @@ impl Renderable<PersonsListModel> for PersonsListModel {
                 >
                     { "Add New Person" }
                     </button>
-            
+
                 {
                     if self.filtered_persons.len() > 0 {
                         html! {

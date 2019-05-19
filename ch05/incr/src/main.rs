@@ -15,21 +15,30 @@ impl Component for Model {
     type Message = Msg;
     type Properties = ();
     fn create(_: Self::Properties, _: ComponentLink<Self>) -> Self {
-        Self {
-            value: 0,
-        }
+        Self { value: 0 }
     }
 
     fn update(&mut self, msg: Self::Message) -> ShouldRender {
         match msg {
-            Msg::Increment => { self.value += 1; true },
-            Msg::Reset => { self.value = 0; true },
-            Msg::KeyDown(s) =>
-                match s.as_ref() {
-                    "+" => { self.value += 1; true },
-                    "0" => { self.value = 0; true },
-                    _ => false,
-                },
+            Msg::Increment => {
+                self.value += 1;
+                true
+            }
+            Msg::Reset => {
+                self.value = 0;
+                true
+            }
+            Msg::KeyDown(s) => match s.as_ref() {
+                "+" => {
+                    self.value += 1;
+                    true
+                }
+                "0" => {
+                    self.value = 0;
+                    true
+                }
+                _ => false,
+            }
         }
     }
 }
@@ -51,7 +60,5 @@ impl Renderable<Model> for Model {
 }
 
 fn main() {
-    yew::initialize();
-    App::<Model>::new().mount_to_body();
-    yew::run_loop();
+    yew::start_app::<Model>();
 }

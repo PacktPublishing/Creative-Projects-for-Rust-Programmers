@@ -59,28 +59,25 @@ impl Component for OnePersonModel {
             OnePersonMsg::NameChanged(name) => self.name = name,
             OnePersonMsg::SavePressed => {
                 if self.is_inserting {
-                    self.db_connection.borrow_mut()
-                        .insert_person(Person {
-                            id: 0,
-                            name: self.name.clone(),
-                        });
-                }
-                else {
-                    self.db_connection.borrow_mut()
-                        .update_person(Person {
-                            id: self.id.unwrap(),
-                            name: self.name.clone(),
-                        });
+                    self.db_connection.borrow_mut().insert_person(Person {
+                        id: 0,
+                        name: self.name.clone(),
+                    });
+                } else {
+                    self.db_connection.borrow_mut().update_person(Person {
+                        id: self.id.unwrap(),
+                        name: self.name.clone(),
+                    });
                 }
                 if let Some(ref go_to_page) = self.go_to_persons_list_page {
                     go_to_page.emit(());
                 }
-            },
+            }
             OnePersonMsg::CancelPressed => {
                 if let Some(ref go_to_page) = self.go_to_persons_list_page {
                     go_to_page.emit(());
                 }
-            },
+            }
         }
         true
     }

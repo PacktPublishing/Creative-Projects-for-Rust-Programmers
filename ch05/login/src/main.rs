@@ -1,8 +1,8 @@
 use yew::{html, Component, ComponentLink, Html, Renderable, ShouldRender};
 
 mod db_access;
-use db_access::{DbConnection, User, DbPrivilege};
-use crate::login::{LoginModel};
+use crate::login::LoginModel;
+use db_access::{DbConnection, DbPrivilege, User};
 
 mod login;
 
@@ -44,11 +44,9 @@ impl Component for MainModel {
                 self.page = Page::PersonsList;
                 self.current_user = Some(user.username);
                 self.can_write = user.privileges.contains(&DbPrivilege::CanWrite);
-            },
-            MainMsg::ChangeUserPressed =>
-                self.page = Page::Login,
-            MainMsg::GoToPersonsListPage =>
-                self.page = Page::PersonsList,            
+            }
+            MainMsg::ChangeUserPressed => self.page = Page::Login,
+            MainMsg::GoToPersonsListPage => self.page = Page::PersonsList,
         }
         true
     }

@@ -1,5 +1,5 @@
+use yew::services::DialogService;
 use yew::{html, Callback, Component, ComponentLink, Html, Renderable, ShouldRender};
-use yew::services::{DialogService};
 
 use crate::db_access::{DbConnection, User};
 
@@ -51,26 +51,26 @@ impl Component for LoginModel {
 
     fn update(&mut self, msg: Self::Message) -> ShouldRender {
         match msg {
-            LoginMsg::UsernameChanged(username) =>
-                self.username = username,
-            LoginMsg::PasswordChanged(password) =>
-                self.password = password,
+            LoginMsg::UsernameChanged(username) => self.username = username,
+            LoginMsg::PasswordChanged(password) => self.password = password,
             LoginMsg::LoginPressed => {
-                if let Some(user) = self.db_connection.borrow()
-                    .get_user_by_username(&self.username) {
+                if let Some(user) = self
+                    .db_connection
+                    .borrow()
+                    .get_user_by_username(&self.username)
+                {
                     if user.password == self.password {
                         if let Some(ref go_to_page) = self.when_logged_in {
                             go_to_page.emit(user.clone());
                         }
+                    } else {
+                        self.dialog
+                            .alert("Invalid password for the specified user.");
                     }
-                    else {
-                        self.dialog.alert("Invalid password for the specified user.");
-                    }
-                }
-                else {
+                } else {
                     self.dialog.alert("User not found.");
                 }
-            },
+            }
         }
         true
     }
