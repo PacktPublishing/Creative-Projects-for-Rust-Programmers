@@ -41,8 +41,11 @@ fn delete_persons(req: &HttpRequest<AppState>) -> impl Responder {
         .unwrap_or(&"".to_string())
         .split_terminator(',')
         .for_each(|id| {
-            deleted_count += if db_conn.delete_by_id(
-                id.parse::<u32>().unwrap()) { 1 } else { 0 };
+            deleted_count += if db_conn.delete_by_id(id.parse::<u32>().unwrap()) {
+                1
+            } else {
+                0
+            };
         });
     deleted_count.to_string()
 }
@@ -104,8 +107,11 @@ fn update_person(req: &HttpRequest<AppState>) -> impl Responder {
         .parse::<u32>()
         .unwrap();
     let name = req.query().get("name").unwrap_or(&"".to_string()).clone();
-    updated_count += if db_conn.update_person(
-        Person { id: id, name: name }) { 1 } else { 0 };
+    updated_count += if db_conn.update_person(Person { id, name }) {
+        1
+    } else {
+        0
+    };
     updated_count.to_string()
 }
 
@@ -128,17 +134,13 @@ fn invalid_resource(req: &HttpRequest<AppState>) -> impl Responder {
 }
 
 lazy_static! {
-    pub static ref TERA: tera::Tera = {
-        tera::compile_templates!("templates/**/*")
-    };
+    pub static ref TERA: tera::Tera = { tera::compile_templates!("templates/**/*") };
 }
 
 fn main() {
     let server_address = "127.0.0.1:8080";
     println!("Listening at address {}", server_address);
-    let db_conn = Arc::new(Mutex::new(
-        db_access::DbConnection::new()
-    ));
+    let db_conn = Arc::new(Mutex::new(db_access::DbConnection::new()));
     server::new(move || {
         App::with_state(AppState {
             db_conn: db_conn.clone(),

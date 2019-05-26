@@ -34,7 +34,7 @@ impl DbConnection {
         self.persons
             .iter()
             .filter(|p| p.name.contains(subname))
-            .map(|p| p.clone())
+            .cloned()
             .collect()
     }
 }

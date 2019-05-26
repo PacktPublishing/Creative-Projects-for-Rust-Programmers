@@ -1,7 +1,6 @@
 fn main() {
     // 1. Define the config structure.
-    let config_const_values =
-    {
+    let config_const_values = {
         // 2. Get the path of the config file from the command line.
         let config_path = std::env::args().nth(1).unwrap();
 
@@ -16,8 +15,14 @@ fn main() {
     println!("Original: {:#?}", config_const_values);
 
     // 6. Get and show one config value.
-    println!("[Postgresql].Database: {}",
-        config_const_values.get("postgresql").unwrap()
-        .get("database").unwrap()
-        .as_str().unwrap());
+    println!(
+        "[Postgresql].Database: {}",
+        config_const_values
+            .get("postgresql")
+            .unwrap()
+            .get("database")
+            .unwrap()
+            .as_str()
+            .unwrap()
+    );
 }

@@ -1,5 +1,5 @@
-use postgres::{Connection, TlsMode, Result};
 use postgres::types::ToSql;
+use postgres::{Connection, Result, TlsMode};
 
 #[derive(Debug)]
 struct SaleWithProduct {
@@ -20,14 +20,16 @@ fn create_db() -> Result<Connection> {
         format!(
             "postgres://{}{}{}@{}{}{}{}{}",
             username,
-            if password.len() == 0 { "" } else { ":" },
+            if password.is_empty() { "" } else { ":" },
             password,
             host,
-            if port.len() == 0 { "" } else { ":" },
+            if port.is_empty() { "" } else { ":" },
             port,
-            if database.len() == 0 { "" } else { "/" },
-            database),
-        TlsMode::None)?;
+            if database.is_empty() { "" } else { "/" },
+            database
+        ),
+        TlsMode::None,
+    )?;
     let _ = conn.execute("DROP TABLE Sales", &[]);
     let _ = conn.execute("DROP TABLE Products", &[]);
     conn.execute(
@@ -35,7 +37,7 @@ fn create_db() -> Result<Connection> {
             id INTEGER PRIMARY KEY,
             category TEXT NOT NULL,
             name TEXT NOT NULL UNIQUE)",
-        &[]
+        &[],
     )?;
     conn.execute(
         "CREATE TABLE Sales (
@@ -44,7 +46,7 @@ fn create_db() -> Result<Connection> {
             sale_date BIGINT NOT NULL,
             quantity DOUBLE PRECISION NOT NULL,
             unit TEXT NOT NULL)",
-        &[]
+        &[],
     )?;
     Ok(conn)
 }
@@ -60,8 +62,7 @@ fn populate_db(conn: &Connection) -> Result<()> {
         "INSERT INTO Sales (
             id, product_id, sale_date, quantity, unit
             ) VALUES ($1, $2, $3, $4, $5)",
-        &[&"2020-183" as &ToSql, &1,
-            &1234567890i64, &7.439, &"Kg"],
+        &[&"2020-183" as &ToSql, &1, &1_234_567_890_i64, &7.439, &"Kg"],
     )?;
     Ok(())
 }
@@ -73,8 +74,8 @@ fn print_db(conn: &Connection) -> Result<()> {
         LEFT JOIN Products p
         ON p.id = s.product_id
         ORDER BY s.sale_date",
-        &[])?
-    {
+        &[],
+    )? {
         let sale_with_product = SaleWithProduct {
             category: "".to_string(),
             name: row.get(0),
@@ -82,11 +83,13 @@ fn print_db(conn: &Connection) -> Result<()> {
             unit: row.get(1),
             date: row.get(3),
         };
-        println!("At instant {}, {} {} of {} were sold.",
+        println!(
+            "At instant {}, {} {} of {} were sold.",
             sale_with_product.date,
             sale_with_product.quantity,
             sale_with_product.unit,
-            sale_with_product.name);
+            sale_with_product.name
+        );
     }
     Ok(())
 }

@@ -36,8 +36,7 @@ struct Config {
 
 fn main() {
     // 1. Define the config structure.
-    let config_const_values: Config =
-    {
+    let config_const_values: Config = {
         // 2. Get the path of the config file from the command line.
         let config_path = std::env::args().nth(1).unwrap();
 
@@ -49,6 +48,8 @@ fn main() {
     };
 
     // 5. Get and show one config value.
-    println!("[postgresql].database: {}",
-        config_const_values.postgresql.database);
+    println!(
+        "[postgresql].database: {}",
+        config_const_values.postgresql.database
+    );
 }

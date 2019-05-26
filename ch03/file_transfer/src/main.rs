@@ -133,10 +133,7 @@ fn upload_new_file(req: &HttpRequest) -> Box<Future<Item = HttpResponse, Error =
             }
             println!("Uploaded file \"{}\"", filename);
 
-            ok(HttpResponse::Ok()
-                .content_type("text/plain")
-                .body(filename)
-                .into())
+            ok(HttpResponse::Ok().content_type("text/plain").body(filename))
         })
         .responder()
 }

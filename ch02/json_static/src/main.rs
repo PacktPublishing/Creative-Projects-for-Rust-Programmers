@@ -26,8 +26,7 @@ fn main() -> Result<(), std::io::Error> {
     let input_path = std::env::args().nth(1).unwrap();
     let output_path = std::env::args().nth(2).unwrap();
     let mut sales_and_products = {
-        let sales_and_products_text =
-            std::fs::read_to_string(&input_path)?;
+        let sales_and_products_text = std::fs::read_to_string(&input_path)?;
 
         // 1. Load the sale structure from the string.
         serde_json::from_str::<SalesAndProducts>(&sales_and_products_text).unwrap()
@@ -40,6 +39,6 @@ fn main() -> Result<(), std::io::Error> {
         output_path,
         serde_json::to_string_pretty(&sales_and_products).unwrap(),
     )?;
-    
+
     Ok(())
 }

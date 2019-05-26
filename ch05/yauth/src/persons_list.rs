@@ -173,7 +173,7 @@ impl Renderable<PersonsListModel> for PersonsListModel {
                     </button>
 
                 {
-                    if self.filtered_persons.len() > 0 {
+                    if !self.filtered_persons.is_empty() {
                         html! {
                             <table>
                                 <thead>

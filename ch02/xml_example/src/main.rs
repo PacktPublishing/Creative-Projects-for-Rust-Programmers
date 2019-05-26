@@ -49,160 +49,144 @@ fn main() {
     for event in parser {
         match &location_item {
             LocationItem::Other => match event {
-                Ok(XmlEvent::StartElement { ref name, .. })
-                    if name.local_name == "product"
-                => {
+                Ok(XmlEvent::StartElement { ref name, .. }) if name.local_name == "product" => {
                     location_item = LocationItem::InProduct;
                     location_product = LocationProduct::Other;
                     product = Default::default();
-                },
-                Ok(XmlEvent::StartElement { ref name, .. })
-                    if name.local_name == "sale"
-                => {
+                }
+                Ok(XmlEvent::StartElement { ref name, .. }) if name.local_name == "sale" => {
                     location_item = LocationItem::InSale;
                     location_sale = LocationSale::Other;
                     sale = Default::default();
-                },
-                _ => {},
+                }
+                _ => {}
             },
             LocationItem::InProduct => match &location_product {
-                LocationProduct::Other =>
-                    match event {
-                        Ok(XmlEvent::StartElement { ref name, .. })
-                            if name.local_name == "id" => {
-                            location_product = LocationProduct::InId;
-                        },
-                        Ok(XmlEvent::StartElement { ref name, .. })
-                            if name.local_name == "category" => {
-                            location_product = LocationProduct::InCategory;
-                        },
-                        Ok(XmlEvent::StartElement { ref name, .. })
-                            if name.local_name == "name" => {
-                            location_product = LocationProduct::InName;
-                        },
-                        Ok(XmlEvent::EndElement { .. }) => {
-                            location_item = LocationItem::Other;
-                            println!("  Exit product: {:?}", product);
-                        },
-                        _ => {},
-                    },
+                LocationProduct::Other => match event {
+                    Ok(XmlEvent::StartElement { ref name, .. }) if name.local_name == "id" => {
+                        location_product = LocationProduct::InId;
+                    }
+                    Ok(XmlEvent::StartElement { ref name, .. })
+                        if name.local_name == "category" =>
+                    {
+                        location_product = LocationProduct::InCategory;
+                    }
+                    Ok(XmlEvent::StartElement { ref name, .. }) if name.local_name == "name" => {
+                        location_product = LocationProduct::InName;
+                    }
+                    Ok(XmlEvent::EndElement { .. }) => {
+                        location_item = LocationItem::Other;
+                        println!("  Exit product: {:?}", product);
+                    }
+                    _ => {}
+                },
                 LocationProduct::InId => match event {
-                    Ok(XmlEvent::Characters ( characters ))
-                    => {
+                    Ok(XmlEvent::Characters(characters)) => {
                         product.id = characters.parse::<u32>().unwrap();
                         println!("Got product.id: {}.", characters);
-                    },
+                    }
                     Ok(XmlEvent::EndElement { .. }) => {
                         location_product = LocationProduct::Other;
-                    },
-                    _ => {},
+                    }
+                    _ => {}
                 },
                 LocationProduct::InCategory => match event {
-                    Ok(XmlEvent::Characters ( characters ))
-                    => {
+                    Ok(XmlEvent::Characters(characters)) => {
                         product.category = characters.clone();
                         println!("Got product.category: {}.", characters);
-                    },
+                    }
                     Ok(XmlEvent::EndElement { .. }) => {
                         location_product = LocationProduct::Other;
-                    },
-                    _ => {},
+                    }
+                    _ => {}
                 },
                 LocationProduct::InName => match event {
-                    Ok(XmlEvent::Characters ( characters ))
-                    => {
+                    Ok(XmlEvent::Characters(characters)) => {
                         product.name = characters.clone();
                         println!("Got product.name: {}.", characters);
-                    },
+                    }
                     Ok(XmlEvent::EndElement { .. }) => {
                         location_product = LocationProduct::Other;
-                    },
-                    _ => {},
+                    }
+                    _ => {}
                 },
             },
             LocationItem::InSale => match &location_sale {
                 LocationSale::Other => match event {
-                    Ok(XmlEvent::StartElement { ref name, .. })
-                        if name.local_name == "id" => {
+                    Ok(XmlEvent::StartElement { ref name, .. }) if name.local_name == "id" => {
                         location_sale = LocationSale::InId;
-                    },
+                    }
                     Ok(XmlEvent::StartElement { ref name, .. })
-                        if name.local_name == "product-id" => {
+                        if name.local_name == "product-id" =>
+                    {
                         location_sale = LocationSale::InProductId;
-                    },
-                    Ok(XmlEvent::StartElement { ref name, .. })
-                        if name.local_name == "date" => {
+                    }
+                    Ok(XmlEvent::StartElement { ref name, .. }) if name.local_name == "date" => {
                         location_sale = LocationSale::InDate;
-                    },
+                    }
                     Ok(XmlEvent::StartElement { ref name, .. })
-                        if name.local_name == "quantity" => {
+                        if name.local_name == "quantity" =>
+                    {
                         location_sale = LocationSale::InQuantity;
-                    },
-                    Ok(XmlEvent::StartElement { ref name, .. })
-                        if name.local_name == "unit" => {
+                    }
+                    Ok(XmlEvent::StartElement { ref name, .. }) if name.local_name == "unit" => {
                         location_sale = LocationSale::InUnit;
-                    },
-                    Ok(XmlEvent::EndElement { ref name, .. })
-                        if name.local_name == "sale" => {
+                    }
+                    Ok(XmlEvent::EndElement { ref name, .. }) if name.local_name == "sale" => {
                         location_item = LocationItem::Other;
                         println!("  Exit sale: {:?}", sale);
-                    },
-                    _ => {},
+                    }
+                    _ => {}
                 },
                 LocationSale::InId => match event {
-                    Ok(XmlEvent::Characters ( characters ))
-                    => {
+                    Ok(XmlEvent::Characters(characters)) => {
                         sale.id = characters.clone();
                         println!("Got sale.id: {}.", characters);
-                    },
+                    }
                     Ok(XmlEvent::EndElement { .. }) => {
                         location_sale = LocationSale::Other;
-                    },
-                    _ => {},
+                    }
+                    _ => {}
                 },
                 LocationSale::InProductId => match event {
-                    Ok(XmlEvent::Characters ( characters ))
-                    => {
+                    Ok(XmlEvent::Characters(characters)) => {
                         sale.product_id = characters.parse::<u32>().unwrap();
                         println!("Got sale.product-id: {}.", characters);
-                    },
+                    }
                     Ok(XmlEvent::EndElement { .. }) => {
                         location_sale = LocationSale::Other;
-                    },
-                    _ => {},
+                    }
+                    _ => {}
                 },
                 LocationSale::InDate => match event {
-                    Ok(XmlEvent::Characters ( characters ))
-                    => {
+                    Ok(XmlEvent::Characters(characters)) => {
                         sale.date = characters.parse::<i64>().unwrap();
                         println!("Got sale.date: {}.", characters);
-                    },
+                    }
                     Ok(XmlEvent::EndElement { .. }) => {
                         location_sale = LocationSale::Other;
-                    },
-                    _ => {},
+                    }
+                    _ => {}
                 },
                 LocationSale::InQuantity => match event {
-                    Ok(XmlEvent::Characters ( characters ))
-                    => {
+                    Ok(XmlEvent::Characters(characters)) => {
                         sale.quantity = characters.parse::<f64>().unwrap();
                         println!("Got sale.quantity: {}.", characters);
-                    },
+                    }
                     Ok(XmlEvent::EndElement { .. }) => {
                         location_sale = LocationSale::Other;
-                    },
-                    _ => {},
+                    }
+                    _ => {}
                 },
                 LocationSale::InUnit => match event {
-                    Ok(XmlEvent::Characters ( characters ))
-                    => {
+                    Ok(XmlEvent::Characters(characters)) => {
                         sale.unit = characters.clone();
                         println!("Got sale.unit: {}.", characters);
-                    },
+                    }
                     Ok(XmlEvent::EndElement { .. }) => {
                         location_sale = LocationSale::Other;
-                    },
-                    _ => {},
+                    }
+                    _ => {}
                 },
             },
         }

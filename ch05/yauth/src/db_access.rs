@@ -62,7 +62,7 @@ impl DbConnection {
         self.persons
             .iter()
             .filter(|p| p.name.contains(subname))
-            .map(|p| p.clone())
+            .cloned()
             .collect()
     }
 
@@ -76,7 +76,7 @@ impl DbConnection {
     }
 
     pub fn insert_person(&mut self, mut person: Person) -> u32 {
-        let new_id = if self.persons.len() == 0 {
+        let new_id = if self.persons.is_empty() {
             1
         } else {
             self.persons[self.persons.len() - 1].id + 1

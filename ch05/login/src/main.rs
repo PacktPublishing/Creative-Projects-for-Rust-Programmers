@@ -11,18 +11,16 @@ enum Page {
     PersonsList,
 }
 
-pub struct MainModel {
+struct MainModel {
     page: Page,
     current_user: Option<String>,
     can_write: bool,
     db_connection: std::rc::Rc<std::cell::RefCell<DbConnection>>,
 }
 
-#[derive(Debug)]
-pub enum MainMsg {
+enum MainMsg {
     LoggedIn(User),
     ChangeUserPressed,
-    GoToPersonsListPage,
 }
 
 impl Component for MainModel {
@@ -46,7 +44,6 @@ impl Component for MainModel {
                 self.can_write = user.privileges.contains(&DbPrivilege::CanWrite);
             }
             MainMsg::ChangeUserPressed => self.page = Page::Login,
-            MainMsg::GoToPersonsListPage => self.page = Page::PersonsList,
         }
         true
     }
@@ -97,7 +94,7 @@ impl Renderable<MainModel> for MainModel {
                         Page::Login => html! {
                             <LoginModel:
                                 current_username=&self.current_user,
-                                when_logged_in=|u| MainMsg::LoggedIn(u),
+                                when_logged_in=MainMsg::LoggedIn,
                                 db_connection=Some(self.db_connection.clone()),
                             />
                         },

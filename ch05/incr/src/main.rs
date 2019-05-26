@@ -38,7 +38,7 @@ impl Component for Model {
                     true
                 }
                 _ => false,
-            }
+            },
         }
     }
 }

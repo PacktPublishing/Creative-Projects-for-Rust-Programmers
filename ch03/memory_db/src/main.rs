@@ -13,7 +13,7 @@ fn get_all_persons_ids(req: &HttpRequest<AppState>) -> impl Responder {
     db_conn
         .get_all_persons_ids()
         .iter()
-        .map(|id| id.to_string())
+        .map(ToString::to_string)
         .collect::<Vec<String>>()
         .join(", ")
 }

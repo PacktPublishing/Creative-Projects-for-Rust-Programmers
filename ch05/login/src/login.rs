@@ -42,7 +42,7 @@ impl Component for LoginModel {
     fn create(props: Self::Properties, _link: ComponentLink<Self>) -> Self {
         LoginModel {
             dialog: DialogService::new(),
-            username: props.current_username.unwrap_or(String::new()),
+            username: props.current_username.unwrap_or_default(),
             password: String::new(),
             when_logged_in: props.when_logged_in,
             db_connection: props.db_connection.unwrap(),
@@ -76,7 +76,7 @@ impl Component for LoginModel {
     }
 
     fn change(&mut self, props: Self::Properties) -> ShouldRender {
-        self.username = props.current_username.unwrap_or(String::new());
+        self.username = props.current_username.unwrap_or_default();
         self.when_logged_in = props.when_logged_in;
         self.db_connection = props.db_connection.unwrap();
         true

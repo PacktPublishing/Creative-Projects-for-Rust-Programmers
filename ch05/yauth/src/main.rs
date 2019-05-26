@@ -105,14 +105,14 @@ impl Renderable<MainModel> for MainModel {
                         Page::Login => html! {
                             <LoginModel:
                                 current_username=&self.current_user,
-                                when_logged_in=|u| MainMsg::LoggedIn(u),
+                                when_logged_in=MainMsg::LoggedIn,
                                 db_connection=Some(self.db_connection.clone()),
                             />
                         },
                         Page::PersonsList => html! {
                             <PersonsListModel:
                                 can_write=self.can_write,
-                                go_to_one_person_page=|p| MainMsg::GoToOnePersonPage(p),
+                                go_to_one_person_page=MainMsg::GoToOnePersonPage,
                                 db_connection=Some(self.db_connection.clone()),
                             />
                         },
