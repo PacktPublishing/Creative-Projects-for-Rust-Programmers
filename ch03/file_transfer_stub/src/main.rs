@@ -13,15 +13,20 @@
 // Deleting file "datafile.txt" ... Deleted file "datafile.txt"
 // Downloading file "datafile.txt" ... Downloaded file "datafile.txt"
 // Uploading file "datafile.txt" ... Uploaded file "datafile.txt"
-// Uploading file "data*.txt" ... Uploaded file "data917.txt"
+// Uploading file "data_*.txt" ... Uploaded file "data_17.txt"
 // Invalid URI: "/a/b"
 
-use actix_web::{http, server, App, HttpRequest, HttpResponse, Responder};
+use actix_web::{web, web::Path, App, HttpRequest, HttpResponse, HttpServer, Responder};
+use std::io::Write;
 
-fn delete_file(req: &HttpRequest) -> impl Responder {
-    let info = req.match_info();
-    let filename = info.get_decoded("filename").unwrap();
+fn flush_stdout() {
+    std::io::stdout().flush().unwrap();
+}
+
+fn delete_file(info: Path<(String,)>) -> impl Responder {
+    let filename = &info.0;
     print!("Deleting file \"{}\" ... ", filename);
+    flush_stdout();
 
     // TODO: Delete the file.
 
@@ -29,10 +34,10 @@ fn delete_file(req: &HttpRequest) -> impl Responder {
     HttpResponse::Ok()
 }
 
-fn download_file(req: &HttpRequest) -> impl Responder {
-    let info = req.match_info();
-    let filename = info.get_decoded("filename").unwrap();
+fn download_file(info: Path<(String,)>) -> impl Responder {
+    let filename = &info.0;
     print!("Downloading file \"{}\" ... ", filename);
+    flush_stdout();
 
     // TODO: Read the contents of the file.
     let contents = "Contents of the file.\n".to_string();
@@ -41,10 +46,10 @@ fn download_file(req: &HttpRequest) -> impl Responder {
     HttpResponse::Ok().content_type("text/plain").body(contents)
 }
 
-fn upload_specified_file(req: &HttpRequest) -> impl Responder {
-    let info = req.match_info();
-    let filename = info.get_decoded("filename").unwrap();
+fn upload_specified_file(info: Path<(String,)>) -> impl Responder {
+    let filename = &info.0;
     print!("Uploading file \"{}\" ... ", filename);
+    flush_stdout();
 
     // TODO: Get from the client the contents to write into the file.
     let _contents = "Contents of the file.\n".to_string();
@@ -55,10 +60,10 @@ fn upload_specified_file(req: &HttpRequest) -> impl Responder {
     HttpResponse::Ok()
 }
 
-fn upload_new_file(req: &HttpRequest) -> impl Responder {
-    let info = req.match_info();
-    let filename_prefix = info.get_decoded("filename").unwrap();
-    print!("Uploading file \"{}_*.txt\" ... ", filename_prefix);
+fn upload_new_file(info: Path<(String,)>) -> impl Responder {
+    let filename_prefix = info.0.clone();
+    print!("Uploading file \"{}*.txt\" ... ", filename_prefix);
+    flush_stdout();
 
     // TODO: Get from the client the contents to write into the file.
     let _contents = "Contents of the file.\n".to_string();
@@ -66,7 +71,7 @@ fn upload_new_file(req: &HttpRequest) -> impl Responder {
     // TODO: Generate new filename and create that file.
     let file_id = 17;
 
-    let filename = format!("{}_{}.txt", filename_prefix, file_id);
+    let filename = format!("{}{}.txt", filename_prefix, file_id);
 
     // TODO: Write the contents into the file.
 
@@ -74,25 +79,25 @@ fn upload_new_file(req: &HttpRequest) -> impl Responder {
     HttpResponse::Ok()
 }
 
-fn invalid_resource(req: &HttpRequest) -> impl Responder {
+fn invalid_resource(req: HttpRequest) -> impl Responder {
     println!("Invalid URI: \"{}\"", req.uri());
     HttpResponse::NotFound()
 }
 
-fn main() {
+fn main() -> std::io::Result<()> {
     let server_address = "127.0.0.1:8080";
     println!("Listening at address {} ...", server_address);
-    server::new(move || {
+    HttpServer::new(|| {
         App::new()
-            .resource("/{filename}", |r| {
-                r.method(http::Method::DELETE).f(delete_file);
-                r.method(http::Method::GET).f(download_file);
-                r.method(http::Method::PUT).f(upload_specified_file);
-                r.method(http::Method::POST).f(upload_new_file);
-            })
-            .default_resource(|r| r.f(invalid_resource))
+            .service(
+                web::resource("/{filename}")
+                    .route(web::delete().to(delete_file))
+                    .route(web::get().to(download_file))
+                    .route(web::put().to(upload_specified_file))
+                    .route(web::post().to(upload_new_file)),
+            )
+            .default_service(web::route().to(invalid_resource))
     })
-    .bind(server_address)
-    .unwrap()
-    .run();
+    .bind(server_address)?
+    .run()
 }

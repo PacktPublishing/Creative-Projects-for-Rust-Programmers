@@ -5,17 +5,22 @@
 // curl -X POST http://localhost:8080/data -d "File contents."
 // curl -X GET http://localhost:8080/a/b
 
-use actix_web::{http, server, App, HttpRequest, HttpResponse, Responder};
-use actix_web::{AsyncResponder, Error, HttpMessage};
+use actix_web::Error;
+use actix_web::{web, web::Path, App, HttpRequest, HttpResponse, HttpServer, Responder};
 use futures::future::{ok, Future};
+use futures::Stream;
 use rand::prelude::*;
 use std::fs::{File, OpenOptions};
 use std::io::Write;
 
-fn delete_file(req: &HttpRequest) -> impl Responder {
-    let info = req.match_info();
-    let filename = info.get_decoded("filename").unwrap();
+fn flush_stdout() {
+    std::io::stdout().flush().unwrap();
+}
+
+fn delete_file(info: Path<(String,)>) -> impl Responder {
+    let filename = &info.0;
     print!("Deleting file \"{}\" ... ", filename);
+    flush_stdout();
 
     // Delete the file.
     match std::fs::remove_file(&filename) {
@@ -30,10 +35,10 @@ fn delete_file(req: &HttpRequest) -> impl Responder {
     }
 }
 
-fn download_file(req: &HttpRequest) -> impl Responder {
-    let info = req.match_info();
-    let filename = info.get_decoded("filename").unwrap();
+fn download_file(info: Path<(String,)>) -> impl Responder {
+    let filename = &info.0;
     print!("Downloading file \"{}\" ... ", filename);
+    flush_stdout();
 
     fn read_file_contents(filename: &str) -> std::io::Result<String> {
         use std::io::Read;
@@ -54,15 +59,23 @@ fn download_file(req: &HttpRequest) -> impl Responder {
     }
 }
 
-fn upload_specified_file(req: &HttpRequest) -> Box<Future<Item = HttpResponse, Error = Error>> {
-    let info = req.match_info();
-    let filename = info.get_decoded("filename").unwrap();
+fn upload_specified_file(
+    payload: web::Payload,
+    info: Path<(String,)>,
+) -> impl Future<Item = HttpResponse, Error = Error> {
+    let filename = info.0.clone();
+
     print!("Uploading file \"{}\" ... ", filename);
+    flush_stdout();
 
     // Get asynchronously from the client
     // the contents to write into the file.
-    req.body()
-        .from_err()
+    payload
+        .map_err(Error::from)
+        .fold(web::BytesMut::new(), move |mut body, chunk| {
+            body.extend_from_slice(&chunk);
+            Ok::<_, Error>(body)
+        })
         .and_then(move |contents| {
             // Create the file.
             let f = File::create(&filename);
@@ -78,20 +91,25 @@ fn upload_specified_file(req: &HttpRequest) -> Box<Future<Item = HttpResponse, E
             }
 
             println!("Uploaded file \"{}\"", filename);
-            ok(HttpResponse::Ok().into())
+            //ok(HttpResponse::Ok().into())
+            ok(HttpResponse::Ok().finish())
         })
-        .responder()
 }
 
-fn upload_new_file(req: &HttpRequest) -> Box<Future<Item = HttpResponse, Error = Error>> {
-    let info = req.match_info();
-    let filename_prefix = info.get_decoded("filename").unwrap();
+fn upload_new_file(
+    payload: web::Payload,
+    info: Path<(String,)>,
+) -> impl Future<Item = HttpResponse, Error = Error> {
+    let filename_prefix = info.0.clone();
     print!("Uploading file \"{}*.txt\" ... ", filename_prefix);
+    flush_stdout();
 
-    // Get asynchronously from the client
-    // the contents to write into the file.
-    req.body()
-        .from_err()
+    payload
+        .map_err(Error::from)
+        .fold(web::BytesMut::new(), move |mut body, chunk| {
+            body.extend_from_slice(&chunk);
+            Ok::<_, Error>(body)
+        })
         .and_then(move |contents| {
             let mut rng = rand::thread_rng();
             let mut attempts = 0;
@@ -135,28 +153,27 @@ fn upload_new_file(req: &HttpRequest) -> Box<Future<Item = HttpResponse, Error =
 
             ok(HttpResponse::Ok().content_type("text/plain").body(filename))
         })
-        .responder()
 }
 
-fn invalid_resource(req: &HttpRequest) -> impl Responder {
+fn invalid_resource(req: HttpRequest) -> impl Responder {
     println!("Invalid URI: \"{}\"", req.uri());
     HttpResponse::NotFound()
 }
 
-fn main() {
+fn main() -> std::io::Result<()> {
     let server_address = "127.0.0.1:8080";
     println!("Listening at address {} ...", server_address);
-    server::new(move || {
+    HttpServer::new(|| {
         App::new()
-            .resource("/{filename}", |r| {
-                r.method(http::Method::DELETE).f(delete_file);
-                r.method(http::Method::GET).f(download_file);
-                r.method(http::Method::PUT).f(upload_specified_file);
-                r.method(http::Method::POST).f(upload_new_file);
-            })
-            .default_resource(|r| r.f(invalid_resource))
+            .service(
+                web::resource("/{filename}")
+                    .route(web::delete().to(delete_file))
+                    .route(web::get().to(download_file))
+                    .route(web::put().to_async(upload_specified_file))
+                    .route(web::post().to_async(upload_new_file)),
+            )
+            .default_service(web::route().to(invalid_resource))
     })
-    .bind(server_address)
-    .unwrap()
-    .run();
+    .bind(server_address)?
+    .run()
 }

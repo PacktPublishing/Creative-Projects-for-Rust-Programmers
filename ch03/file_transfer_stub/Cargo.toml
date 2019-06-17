@@ -5,4 +5,4 @@ authors = []
 edition = "2018"
 
 [dependencies]
-actix-web = "0.7"
+actix-web = "1"
