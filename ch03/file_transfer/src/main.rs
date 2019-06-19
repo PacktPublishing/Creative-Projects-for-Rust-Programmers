@@ -7,8 +7,10 @@
 
 use actix_web::Error;
 use actix_web::{web, web::Path, App, HttpRequest, HttpResponse, HttpServer, Responder};
-use futures::future::{ok, Future};
-use futures::Stream;
+use futures::{
+    future::{ok, Future},
+    Stream,
+};
 use rand::prelude::*;
 use std::fs::{File, OpenOptions};
 use std::io::Write;
@@ -91,7 +93,6 @@ fn upload_specified_file(
             }
 
             println!("Uploaded file \"{}\"", filename);
-            //ok(HttpResponse::Ok().into())
             ok(HttpResponse::Ok().finish())
         })
 }
@@ -149,8 +150,8 @@ fn upload_new_file(
                 println!("Failed to write file \"{}\"", filename);
                 return ok(HttpResponse::NotFound().into());
             }
-            println!("Uploaded file \"{}\"", filename);
 
+            println!("Uploaded file \"{}\"", filename);
             ok(HttpResponse::Ok().content_type("text/plain").body(filename))
         })
 }

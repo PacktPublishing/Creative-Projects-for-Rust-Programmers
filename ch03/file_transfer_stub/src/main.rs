@@ -61,8 +61,8 @@ fn upload_specified_file(info: Path<(String,)>) -> impl Responder {
 }
 
 fn upload_new_file(info: Path<(String,)>) -> impl Responder {
-    let filename_prefix = info.0.clone();
-    print!("Uploading file \"{}*.txt\" ... ", filename_prefix);
+    let filename = &info.0;
+    print!("Uploading file \"{}*.txt\" ... ", filename);
     flush_stdout();
 
     // TODO: Get from the client the contents to write into the file.
@@ -71,12 +71,12 @@ fn upload_new_file(info: Path<(String,)>) -> impl Responder {
     // TODO: Generate new filename and create that file.
     let file_id = 17;
 
-    let filename = format!("{}{}.txt", filename_prefix, file_id);
+    let filename = format!("{}{}.txt", filename, file_id);
 
     // TODO: Write the contents into the file.
 
     println!("Uploaded file \"{}\"", filename);
-    HttpResponse::Ok()
+    HttpResponse::Ok().content_type("text/plain").body(filename)
 }
 
 fn invalid_resource(req: HttpRequest) -> impl Responder {
