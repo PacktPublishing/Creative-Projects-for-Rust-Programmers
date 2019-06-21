@@ -30,11 +30,12 @@ impl DbConnection {
         }
     }
 
-    pub fn get_persons_by_partial_name(&self, subname: &str) -> Vec<Person> {
+    pub fn get_persons_by_partial_name<'a>(
+        &'a self,
+        subname: &'a str,
+    ) -> impl Iterator<Item = &Person> + 'a {
         self.persons
             .iter()
-            .filter(|p| p.name.contains(subname))
-            .cloned()
-            .collect()
+            .filter(move |p| p.name.contains(subname))
     }
 }

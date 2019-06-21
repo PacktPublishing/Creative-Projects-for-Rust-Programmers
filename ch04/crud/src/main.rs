@@ -1,44 +1,58 @@
-use actix_web::{http, server, App, Binary, HttpRequest, HttpResponse, Responder};
+use actix_web::{web, App, HttpRequest, HttpResponse, HttpServer, Responder};
 use lazy_static::lazy_static;
-use std::sync::{Arc, Mutex};
+use serde_derive::Deserialize;
+use std::sync::Mutex;
 
 mod db_access;
 use db_access::Person;
 
 struct AppState {
-    db_conn: Arc<Mutex<db_access::DbConnection>>,
+    db: db_access::DbConnection,
 }
 
-fn get_main(_req: &HttpRequest<AppState>) -> impl Responder {
+fn get_main() -> impl Responder {
     let context = tera::Context::new();
     HttpResponse::Ok()
         .content_type("text/html")
-        .body(TERA.render("main.html", &context).unwrap())
+        .body(TERA.render("main.html", context).unwrap())
 }
 
-fn get_page_persons(req: &HttpRequest<AppState>) -> impl Responder {
-    let partial_name = req
-        .query()
-        .get("partial_name")
-        .unwrap_or(&"".to_string())
-        .clone();
-    let db_conn = req.state().db_conn.lock().unwrap();
+#[derive(Deserialize)]
+pub struct Filter {
+    partial_name: Option<String>,
+}
+
+fn get_page_persons(
+    query: web::Query<Filter>,
+    state: web::Data<Mutex<AppState>>,
+) -> impl Responder {
+    let partial_name = &query.partial_name.clone().unwrap_or_else(|| "".to_string());
+    let db_conn = &state.lock().unwrap().db;
     let person_list = db_conn.get_persons_by_partial_name(&partial_name);
     let mut context = tera::Context::new();
     context.insert("id_error", &"");
     context.insert("partial_name", &partial_name);
-    context.insert("persons", &person_list);
+    context.insert("persons", &person_list.collect::<Vec<_>>());
     HttpResponse::Ok()
         .content_type("text/html")
-        .body(TERA.render("persons.html", &context).unwrap())
+        .body(TERA.render("persons.html", context).unwrap())
 }
 
-fn delete_persons(req: &HttpRequest<AppState>) -> impl Responder {
-    let mut db_conn = req.state().db_conn.lock().unwrap();
+#[derive(Deserialize)]
+pub struct ToDelete {
+    id_list: Option<String>,
+}
+
+fn delete_persons(
+    query: web::Query<ToDelete>,
+    state: web::Data<Mutex<AppState>>,
+) -> impl Responder {
+    let db_conn = &mut state.lock().unwrap().db;
     let mut deleted_count = 0;
-    req.query()
-        .get("id_list")
-        .unwrap_or(&"".to_string())
+    query
+        .id_list
+        .clone()
+        .unwrap_or_else(|| "".to_string())
         .split_terminator(',')
         .for_each(|id| {
             deleted_count += if db_conn.delete_by_id(id.parse::<u32>().unwrap()) {
@@ -50,20 +64,22 @@ fn delete_persons(req: &HttpRequest<AppState>) -> impl Responder {
     deleted_count.to_string()
 }
 
-fn get_page_new_person(_req: &HttpRequest<AppState>) -> impl Responder {
+fn get_page_new_person() -> impl Responder {
     let mut context = tera::Context::new();
     context.insert("person_id", &"");
     context.insert("person_name", &"");
     context.insert("inserting", &true);
     HttpResponse::Ok()
         .content_type("text/html")
-        .body(TERA.render("one_person.html", &context).unwrap())
+        .body(TERA.render("one_person.html", context).unwrap())
 }
 
-fn get_page_edit_person(req: &HttpRequest<AppState>) -> impl Responder {
-    let info = req.match_info();
-    let id = info.get_decoded("id").unwrap();
-    let db_conn = req.state().db_conn.lock().unwrap();
+fn get_page_edit_person(
+    state: web::Data<Mutex<AppState>>,
+    path: web::Path<(String,)>,
+) -> impl Responder {
+    let id = &path.0;
+    let db_conn = &state.lock().unwrap().db;
     let mut context = tera::Context::new();
     if let Ok(id_n) = id.parse::<u32>() {
         if let Some(person) = db_conn.get_person_by_id(id_n) {
@@ -72,23 +88,31 @@ fn get_page_edit_person(req: &HttpRequest<AppState>) -> impl Responder {
             context.insert("inserting", &false);
             return HttpResponse::Ok()
                 .content_type("text/html")
-                .body(TERA.render("one_person.html", &context).unwrap());
+                .body(TERA.render("one_person.html", context).unwrap());
         }
     }
     let person_list = db_conn.get_persons_by_partial_name(&"");
 
     context.insert("id_error", &"Person id not found");
     context.insert("partial_name", &"");
-    context.insert("persons", &person_list);
+    context.insert("persons", &person_list.collect::<Vec<_>>());
     HttpResponse::Ok()
         .content_type("text/html")
-        .body(TERA.render("persons.html", &context).unwrap())
+        .body(TERA.render("persons.html", context).unwrap())
 }
 
-fn insert_person(req: &HttpRequest<AppState>) -> impl Responder {
-    let mut db_conn = req.state().db_conn.lock().unwrap();
+#[derive(Deserialize)]
+struct NameQuery {
+    name: Option<String>,
+}
+
+fn insert_person(
+    state: web::Data<Mutex<AppState>>,
+    query: web::Query<NameQuery>,
+) -> impl Responder {
+    let db_conn = &mut state.lock().unwrap().db;
     let mut inserted_count = 0;
-    if let Some(name) = req.query().get("name") {
+    if let Some(name) = &query.name.clone() {
         inserted_count += db_conn.insert_person(Person {
             id: 0,
             name: name.clone(),
@@ -97,16 +121,20 @@ fn insert_person(req: &HttpRequest<AppState>) -> impl Responder {
     inserted_count.to_string()
 }
 
-fn update_person(req: &HttpRequest<AppState>) -> impl Responder {
-    let mut db_conn = req.state().db_conn.lock().unwrap();
+#[derive(Deserialize)]
+struct PersonQuery {
+    id: Option<u32>,
+    name: Option<String>,
+}
+
+fn update_person(
+    state: web::Data<Mutex<AppState>>,
+    query: web::Query<PersonQuery>,
+) -> impl Responder {
+    let db_conn = &mut state.lock().unwrap().db;
     let mut updated_count = 0;
-    let id = req
-        .query()
-        .get("id")
-        .unwrap_or(&"0".to_string())
-        .parse::<u32>()
-        .unwrap();
-    let name = req.query().get("name").unwrap_or(&"".to_string()).clone();
+    let id = query.id.unwrap_or(0);
+    let name = query.name.clone().unwrap_or_else(|| "".to_string()).clone();
     updated_count += if db_conn.update_person(Person { id, name }) {
         1
     } else {
@@ -115,81 +143,88 @@ fn update_person(req: &HttpRequest<AppState>) -> impl Responder {
     updated_count.to_string()
 }
 
-fn get_favicon(_req: &HttpRequest<AppState>) -> impl Responder {
+fn get_favicon(_req: HttpRequest) -> impl Responder {
     HttpResponse::Ok()
         .content_type("image/x-icon")
-        .body(Binary::from_slice(include_bytes!("favicon.ico")))
+        .body(include_bytes!("favicon.ico") as &[u8])
 }
 
-fn invalid_resource(req: &HttpRequest<AppState>) -> impl Responder {
-    let db_conn = req.state().db_conn.lock().unwrap();
+fn invalid_resource(state: web::Data<Mutex<AppState>>) -> impl Responder {
+    let db_conn = &state.lock().unwrap().db;
     let mut context = tera::Context::new();
     context.insert("id_error", &"Invalid request.");
     context.insert("partial_name", &"");
     let person_list = db_conn.get_persons_by_partial_name(&"");
-    context.insert("persons", &person_list);
+    context.insert("persons", &person_list.collect::<Vec<_>>());
     HttpResponse::Ok()
         .content_type("text/html")
-        .body(TERA.render("persons.html", &context).unwrap())
+        .body(TERA.render("persons.html", context).unwrap())
 }
 
 lazy_static! {
-    pub static ref TERA: tera::Tera = { tera::compile_templates!("templates/**/*") };
+    pub static ref TERA: tera::Tera = tera::Tera::new("templates/**/*").unwrap();
 }
 
-fn main() {
+fn main() -> std::io::Result<()> {
     let server_address = "127.0.0.1:8080";
     println!("Listening at address {}", server_address);
-    let db_conn = Arc::new(Mutex::new(db_access::DbConnection::new()));
-    server::new(move || {
-        App::with_state(AppState {
-            db_conn: db_conn.clone(),
-        })
-        .resource("/", |r| {
-            // Get the frame of the page to manage the persons.
-            // Such frame should request its body.
-            r.method(http::Method::GET).f(get_main);
-        })
-        .resource("/page/persons", |r| {
-            // Get the page to manage the persons,
-            // showing all the persons whose name contains
-            // a string specified in the query argument "partial_name".
-            r.method(http::Method::GET).f(get_page_persons);
-        })
-        .resource("/persons", |r| {
-            // Delete the persons specified in the query argument
-            // "id_to_delete" as a comma-separated list of numbers,
-            // and return the number of persons deleted.
-            r.method(http::Method::DELETE).f(delete_persons);
-        })
-        .resource("/page/new_person", |r| {
-            // Get the page to insert a new person.
-            r.method(http::Method::GET).f(get_page_new_person);
-        })
-        .resource("/page/edit_person/{id}", |r| {
-            // Get the page to show and edit the existing person
-            // having the specified id,
-            // or a NotFound state if does not exist.
-            r.method(http::Method::GET).f(get_page_edit_person);
-        })
-        .resource("/one_person", |r| {
-            // Insert a person having as name the string specified
-            // in the query argument "name",
-            // and return the number of persons inserted (1 or 0).
-            r.method(http::Method::POST).f(insert_person);
-            // Save the person having the id specified in the path
-            // setting as its name the string specified
-            // in the query argument "name",
-            // and return the number of persons updated (1 or 0).
-            r.method(http::Method::PUT).f(update_person);
-        })
-        .resource("/favicon.ico", |r| {
-            // Get the App icon.
-            r.method(http::Method::GET).f(get_favicon);
-        })
-        .default_resource(|r| r.f(invalid_resource))
+    let db_conn = web::Data::new(Mutex::new(AppState {
+        db: db_access::DbConnection::new(),
+    }));
+    HttpServer::new(move || {
+        App::new()
+            .register_data(db_conn.clone())
+            .service(
+                web::resource("/")
+                    // Get the frame of the page to manage the persons.
+                    // Such frame should request its body.
+                    .route(web::get().to(get_main)),
+            )
+            .service(
+                web::resource("/page/persons")
+                    // Get the page to manage the persons,
+                    // showing all the persons whose name contains
+                    // a string specified in the query argument "partial_name".
+                    .route(web::get().to(get_page_persons)),
+            )
+            .service(
+                web::resource("/persons")
+                    // Delete the persons specified in the query argument
+                    // "id_list" as a comma-separated list of numbers,
+                    // and return the number of persons deleted.
+                    .route(web::delete().to(delete_persons)),
+            )
+            .service(
+                web::resource("/page/new_person")
+                    // Get the page to insert a new person.
+                    .route(web::get().to(get_page_new_person)),
+            )
+            .service(
+                web::resource("/page/edit_person/{id}")
+                    // Get the page to show and edit the existing person
+                    // having the specified id,
+                    // or a NotFound state if does not exist.
+                    .route(web::get().to(get_page_edit_person)),
+            )
+            .service(
+                web::resource("/one_person")
+                    // Insert a person having as name the string specified
+                    // in the query argument "name",
+                    // and return the number of persons inserted (1 or 0).
+                    .route(web::post().to(insert_person))
+                    // Save the person having the id specified in the path
+                    // setting as its name the string specified
+                    // in the query argument "name",
+                    // and return the number of persons updated (1 or 0).
+                    .route(web::put().to(update_person)),
+            )
+            .service(
+                web::resource("/favicon.ico")
+                    // Get the App icon.
+                    .route(web::get().to(get_favicon)),
+            )
+            .default_service(web::route().to(invalid_resource))
     })
-    .bind(server_address)
-    .unwrap()
-    .run();
+    .bind(server_address)?
+    .run()
 }
