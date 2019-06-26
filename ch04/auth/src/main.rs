@@ -161,9 +161,9 @@ struct ToInsert {
 }
 
 fn insert_person(
+    state: web::Data<Mutex<AppState>>,
     query: web::Query<ToInsert>,
     auth: BasicAuth,
-    state: web::Data<Mutex<AppState>>,
 ) -> HttpResponse {
     match check_credentials(auth, &state, DbPrivilege::CanWrite) {
         Ok(_) => {
@@ -190,9 +190,9 @@ struct ToUpdate {
 }
 
 fn update_person(
-    query: web::Query<ToUpdate>,
     auth: BasicAuth,
     state: web::Data<Mutex<AppState>>,
+    query: web::Query<ToUpdate>,
 ) -> HttpResponse {
     match check_credentials(auth, &state, DbPrivilege::CanWrite) {
         Ok(_) => {

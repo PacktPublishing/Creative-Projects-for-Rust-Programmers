@@ -68,17 +68,9 @@ fn main() -> std::io::Result<()> {
                     .route(web::get().to(get_main)),
             )
             .service(
-                web::resource("/page/persons/{partial_name}")
-                    // Get the page to manage the persons,
-                    // showing all the persons whose name contains
-                    // a string specified in the query argument "partial_name".
-                    .route(web::get().to(get_page_persons)),
-            )
-            .service(
                 web::resource("/page/persons")
                     // Get the page to manage the persons,
-                    // showing all the persons whose name contains
-                    // a string specified in the query argument "partial_name".
+                    // showing all the persons.
                     .route(web::get().to(get_page_persons)),
             )
             .service(

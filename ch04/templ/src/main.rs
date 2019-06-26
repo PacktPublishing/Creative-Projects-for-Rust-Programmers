@@ -132,6 +132,6 @@ fn main() {
 }
 
 lazy_static::lazy_static! {
-    pub static ref TERA: tera::Tera = //{ tera::compile_templates!("templates/**/*") };
+    pub static ref TERA: tera::Tera =
         tera::Tera::new("templates/**/*").unwrap();
 }

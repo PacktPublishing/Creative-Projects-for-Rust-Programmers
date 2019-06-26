@@ -1,4 +1,4 @@
-use actix_web::{web, App, HttpRequest, HttpResponse, HttpServer, Responder};
+use actix_web::{web, App, HttpResponse, HttpServer, Responder};
 use lazy_static::lazy_static;
 use serde_derive::Deserialize;
 use std::sync::Mutex;
@@ -91,10 +91,9 @@ fn get_page_edit_person(
                 .body(TERA.render("one_person.html", context).unwrap());
         }
     }
-    let person_list = db_conn.get_persons_by_partial_name(&"");
-
     context.insert("id_error", &"Person id not found");
     context.insert("partial_name", &"");
+    let person_list = db_conn.get_persons_by_partial_name(&"");
     context.insert("persons", &person_list.collect::<Vec<_>>());
     HttpResponse::Ok()
         .content_type("text/html")
@@ -102,14 +101,11 @@ fn get_page_edit_person(
 }
 
 #[derive(Deserialize)]
-struct NameQuery {
+struct ToInsert {
     name: Option<String>,
 }
 
-fn insert_person(
-    state: web::Data<Mutex<AppState>>,
-    query: web::Query<NameQuery>,
-) -> impl Responder {
+fn insert_person(state: web::Data<Mutex<AppState>>, query: web::Query<ToInsert>) -> impl Responder {
     let db_conn = &mut state.lock().unwrap().db;
     let mut inserted_count = 0;
     if let Some(name) = &query.name.clone() {
@@ -122,15 +118,12 @@ fn insert_person(
 }
 
 #[derive(Deserialize)]
-struct PersonQuery {
+struct ToUpdate {
     id: Option<u32>,
     name: Option<String>,
 }
 
-fn update_person(
-    state: web::Data<Mutex<AppState>>,
-    query: web::Query<PersonQuery>,
-) -> impl Responder {
+fn update_person(state: web::Data<Mutex<AppState>>, query: web::Query<ToUpdate>) -> impl Responder {
     let db_conn = &mut state.lock().unwrap().db;
     let mut updated_count = 0;
     let id = query.id.unwrap_or(0);
@@ -143,7 +136,7 @@ fn update_person(
     updated_count.to_string()
 }
 
-fn get_favicon(_req: HttpRequest) -> impl Responder {
+fn get_favicon() -> impl Responder {
     HttpResponse::Ok()
         .content_type("image/x-icon")
         .body(include_bytes!("favicon.ico") as &[u8])
