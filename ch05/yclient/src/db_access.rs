@@ -1,23 +1,4 @@
-//use failure::Error;
 use serde_derive::{Serialize, Deserialize};
-//use yew::format::{Json, Nothing};
-use yew::services::fetch::{FetchService, FetchTask};
-use yew::{ComponentLink};
-//use yew::services::ConsoleService;
-
-/*
-pub struct Model {
-    fetch_service: FetchService,
-    link: ComponentLink<Model>,
-//    fetching: bool,
-//    data: Option<u32>,
-    data: Option<Vec<u32>>,
-    response: String,
-    ft: Option<FetchTask>,
-    console: ConsoleService,
-}
-*/
-
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Person {
@@ -42,17 +23,13 @@ pub struct User {
 pub struct DbConnection {
     persons: Vec<Person>,
     users: Vec<User>,
-
-//    fetch_service: FetchService,
-//    link: ComponentLink<DbConnection>,
-    //data: Option<Vec<u32>>,
-//    ft: Option<FetchTask>,
 }
 
 impl DbConnection {
     pub fn new() -> DbConnection {
         DbConnection {
             persons: vec![],
+            // /*
             users: vec![
                 User {
                     username: "joe".to_string(),
@@ -65,9 +42,11 @@ impl DbConnection {
                     privileges: vec![DbPrivilege::CanRead, DbPrivilege::CanWrite],
                 },
             ],
+            // */
         }
     }
 
+// /*
     pub fn get_user_by_username(&self, username: &str) -> Option<&User> {
         if let Some(u) = self.users.iter().find(|u| u.username == username) {
             Some(u)
@@ -75,54 +54,5 @@ impl DbConnection {
             None
         }
     }
-
-    pub fn get_person_by_id(&self, id: u32) -> Option<&Person> {
-        if let Some(p) = self.persons.iter().find(|p| p.id == id) {
-            Some(p)
-        } else {
-            None
-        }
-    }
-
-    pub fn get_persons_by_partial_name(&self, subname: &str) -> Vec<Person> {
-        self.persons
-            .iter()
-            .filter(|p| p.name.contains(subname))
-            .cloned()
-            .collect()
-    }
-
-    pub fn delete_by_id(&mut self, id: u32) -> bool {
-        if let Some((n, _)) = self.persons.iter().enumerate().find(|(_, p)| p.id == id) {
-            self.persons.remove(n);
-            true
-        } else {
-            false
-        }
-    }
-
-    pub fn insert_person(&mut self, mut person: Person) -> u32 {
-        let new_id = if self.persons.is_empty() {
-            1
-        } else {
-            self.persons[self.persons.len() - 1].id + 1
-        };
-        person.id = new_id;
-        self.persons.push(person);
-        new_id
-    }
-
-    pub fn update_person(&mut self, person: Person) -> bool {
-        if let Some((n, _)) = self
-            .persons
-            .iter()
-            .enumerate()
-            .find(|(_, p)| p.id == person.id)
-        {
-            self.persons[n] = person;
-            true
-        } else {
-            false
-        }
-    }
+// */
 }

@@ -20,6 +20,8 @@ pub struct PersonsListModel {
     go_to_one_person_page: Option<Callback<Option<Person>>>,
     db_connection: std::rc::Rc<std::cell::RefCell<DbConnection>>,
     console: ConsoleService,
+    username: String,
+    password: String,
 }
 
 #[derive(Debug)]
@@ -43,6 +45,8 @@ pub struct PersonsListProps {
     pub can_write: bool,
     pub go_to_one_person_page: Option<Callback<Option<Person>>>,
     pub db_connection: Option<std::rc::Rc<std::cell::RefCell<DbConnection>>>,
+    pub username: String,
+    pub password: String,
 }
 
 impl Default for PersonsListProps {
@@ -51,6 +55,8 @@ impl Default for PersonsListProps {
             can_write: false,
             go_to_one_person_page: None,
             db_connection: None,
+            username: "".to_string(),
+            password: "".to_string(),
         }
     }
 }
@@ -74,8 +80,9 @@ impl Component for PersonsListModel {
             go_to_one_person_page: props.go_to_one_person_page,
             db_connection: props.db_connection.unwrap(),
             console: ConsoleService::new(),
+            username: "".to_string(),
+            password: "".to_string(),
         };
-        //model.filtered_persons = model.db_connection.borrow().get_persons_by_partial_name("");
         model.update(PersonsListMsg::FilterPressed);
         model
     }
@@ -90,7 +97,7 @@ impl Component for PersonsListModel {
                 None => {
                     self.dialog.alert("No id specified.");
                 }
-            },
+            }
             PersonsListMsg::PartialNameChanged(s) => self.name_portion = s,
             PersonsListMsg::DeletePressed => {
                 if self
@@ -112,7 +119,7 @@ impl Component for PersonsListModel {
                             },
                         );
 
-                        let request = Request::delete(
+                        let mut request = Request::delete(
                             &format!("http://localhost:8080/persons?id_list={}",
                                 self.selected_ids.iter()
                                 .map(|id| id.to_string())
@@ -120,6 +127,18 @@ impl Component for PersonsListModel {
                                 .join(","))
                             ).body(Nothing).unwrap();
                         
+                        let mut auth_string = "Basic ".to_string();
+                        base64::encode_config_buf(
+                            format!("{}:{}",
+                                self.username, self.password).as_bytes(),
+                            base64::STANDARD,
+                            &mut auth_string);
+                        request.headers_mut().append(
+                            "authorization",
+                            auth_string.parse().unwrap()
+                            );
+                        self.console.log(&format!("request.headers: {:?}.", request.headers()));
+
                         self.fetch_service.fetch(request, callback)
                     });
                 }
@@ -146,18 +165,8 @@ impl Component for PersonsListModel {
                 }
             }
             PersonsListMsg::EditPressed(id) => {
-                /*
-                //TODO fetch
-                match self.db_connection.borrow().get_person_by_id(id) {
-                    Some(person) => {
-                        if let Some(ref go_to_page) = self.go_to_one_person_page {
-                            go_to_page.emit(Some(person.clone()));
-                        }
-                    }
-                    None => self.dialog.alert("No person found with the indicated id."),
-                }
-                */
                 self.fetching = true;
+                self.console.log(&format!("EditPressed: {:?}.", id));
                 self.ft = Some({
                     let callback = self.link.send_back(
                         move |response: Response<Json<Result<Person, Error>>>| {
@@ -171,14 +180,25 @@ impl Component for PersonsListModel {
                         },
                     );
 
-                    let request = Request::get(
+                    let mut request = Request::get(
                         format!("http://localhost:8080/person/id/{}", id))
                         .body(Nothing).unwrap();
                     
+                    let mut auth_string = "Basic ".to_string();
+                    base64::encode_config_buf(
+                        &base64::encode(format!("{}:{}",
+                            self.username, self.password).as_bytes()),
+                        base64::STANDARD,
+                        &mut auth_string);
+                    request.headers_mut().append(
+                        "authorization",
+                        auth_string.parse().unwrap()
+                        );
+                    self.console.log(&format!("request.headers: {:?}.", request.headers()));
+
                     self.fetch_service.fetch(request, callback)
                 });
             }
-
             PersonsListMsg::ReadyPersonToEdit(person) => {
                 self.fetching = false;
                 let person = person.unwrap_or(Person { id: 0, name: "".to_string() });
@@ -203,12 +223,23 @@ impl Component for PersonsListModel {
                         },
                     );
 
-                    let request = Request::get(
+                    let mut request = Request::get(
                         "http://localhost:8080/persons?partial_name=".to_string() +
                         &url::form_urlencoded::byte_serialize(
                             self.name_portion.as_bytes()).collect::<String>()
                         ).body(Nothing).unwrap();
                     
+                    let mut auth_string = "Basic ".to_string();
+                    base64::encode_config_buf(
+                        &base64::encode(("username".to_string() + ":" + "password").as_bytes()),
+                        base64::STANDARD,
+                        &mut auth_string);
+                    request.headers_mut().append(
+                        "authorization",
+                        auth_string.parse().unwrap()
+                        );
+                    self.console.log(&format!("request.headers: {:?}.", request.headers()));
+
                     self.fetch_service.fetch(request, callback)
                 });
             }
@@ -232,7 +263,9 @@ impl Component for PersonsListModel {
         self.can_write = props.can_write;
         self.go_to_one_person_page = props.go_to_one_person_page;
         self.db_connection = props.db_connection.unwrap();
-        self.filtered_persons = self.db_connection.borrow().get_persons_by_partial_name("");
+
+        //self.filtered_persons = self.db_connection.borrow().get_persons_by_partial_name("");
+        self.update(PersonsListMsg::FilterPressed);
         true
     }
 }

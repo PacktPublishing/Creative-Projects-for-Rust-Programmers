@@ -20,7 +20,8 @@ pub enum LoginMsg {
 
 #[derive(PartialEq, Clone)]
 pub struct LoginProps {
-    pub current_username: Option<String>,
+    pub username: String,
+    pub password: String,
     pub when_logged_in: Option<Callback<User>>,
     pub db_connection: Option<std::rc::Rc<std::cell::RefCell<DbConnection>>>,
 }
@@ -28,11 +29,18 @@ pub struct LoginProps {
 impl Default for LoginProps {
     fn default() -> Self {
         LoginProps {
-            current_username: None,
+            username: "".to_string(),
+            password: "".to_string(),
             when_logged_in: None,
             db_connection: None,
         }
     }
+}
+
+//#[derive(Clone, Copy, PartialEq, Debug)]
+pub enum DbPrivilege {
+    CanRead,
+    CanWrite,
 }
 
 impl Component for LoginModel {
@@ -42,7 +50,7 @@ impl Component for LoginModel {
     fn create(props: Self::Properties, _link: ComponentLink<Self>) -> Self {
         LoginModel {
             dialog: DialogService::new(),
-            username: props.current_username.unwrap_or_default(),
+            username: props.username,
             password: String::new(),
             when_logged_in: props.when_logged_in,
             db_connection: props.db_connection.unwrap(),
@@ -54,6 +62,39 @@ impl Component for LoginModel {
             LoginMsg::UsernameChanged(username) => self.username = username,
             LoginMsg::PasswordChanged(password) => self.password = password,
             LoginMsg::LoginPressed => {
+                if self.username.is_empty() {
+                    self.dialog.alert("User not specified.");
+                    return false;
+                }
+                /*
+                self.fetching = true;
+                self.ft = Some({
+                    let callback = self.link.send_back(
+                        move |response: Response<Json<Result<Vec<Privileges>, Error>>>| {
+                            let (meta, Json(data)) = response.into_parts();
+                            if meta.status.is_success() {
+                                PersonsListMsg::ReadyFilteredPersons(data)
+                            } else {
+                                PersonsListMsg::Failure(
+                                    format!("No persons found."))
+                            }
+                        },
+                    );
+
+                    let request = Request::get(
+                        "http://localhost:8080/persons?partial_name=".to_string() +
+                        &url::form_urlencoded::byte_serialize(
+                            self.name_portion.as_bytes()).collect::<String>()
+                        ).body(Nothing).unwrap();
+                    
+                    self.fetch_service.fetch(request, callback)
+                });
+                */
+
+
+
+                //TODO fetch
+
                 if let Some(user) = self
                     .db_connection
                     .borrow()
@@ -68,7 +109,7 @@ impl Component for LoginModel {
                             .alert("Invalid password for the specified user.");
                     }
                 } else {
-                    self.dialog.alert("User not found.");
+                    self.dialog.alert("User not specified.");
                 }
             }
         }
@@ -76,7 +117,7 @@ impl Component for LoginModel {
     }
 
     fn change(&mut self, props: Self::Properties) -> ShouldRender {
-        self.username = props.current_username.unwrap_or_default();
+        self.username = props.username;
         self.when_logged_in = props.when_logged_in;
         self.db_connection = props.db_connection.unwrap();
         true

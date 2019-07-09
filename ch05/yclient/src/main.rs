@@ -19,11 +19,10 @@ enum Page {
 
 pub struct MainModel {
     page: Page,
-    current_user: Option<String>,
+    username: String,
+    password: String,
     can_write: bool,
     db_connection: std::rc::Rc<std::cell::RefCell<DbConnection>>,
-
-
 }
 
 #[derive(Debug)]
@@ -41,7 +40,8 @@ impl Component for MainModel {
     fn create(_: Self::Properties, _link: ComponentLink<Self>) -> Self {
         MainModel {
             page: Page::Login,
-            current_user: None,
+            username: "".to_string(),
+            password: "".to_string(),
             can_write: false,
             db_connection: std::rc::Rc::new(std::cell::RefCell::new(DbConnection::new())),
         }
@@ -51,7 +51,8 @@ impl Component for MainModel {
         match msg {
             MainMsg::LoggedIn(user) => {
                 self.page = Page::PersonsList;
-                self.current_user = Some(user.username);
+                self.username = user.username;
+                self.password = user.password;
                 self.can_write = user.privileges.contains(&DbPrivilege::CanWrite);
             }
             MainMsg::ChangeUserPressed => self.page = Page::Login,
@@ -77,11 +78,11 @@ impl Renderable<MainModel> for MainModel {
                         { "Current user: " }
                         <span class="current-user", >
                         {
-                            if let Some(user) = &self.current_user {
-                                user
+                            if self.username.is_empty() {
+                                "---"
                             }
                             else {
-                                "---"
+                                &self.username
                             }
                         }
                         </span>
@@ -106,9 +107,10 @@ impl Renderable<MainModel> for MainModel {
                     match &self.page {
                         Page::Login => html! {
                             <LoginModel:
-                                current_username=&self.current_user,
                                 when_logged_in=MainMsg::LoggedIn,
                                 db_connection=Some(self.db_connection.clone()),
+                                username=self.username.clone(),
+                                password=self.password.clone(),
                             />
                         },
                         Page::PersonsList => html! {
@@ -116,6 +118,8 @@ impl Renderable<MainModel> for MainModel {
                                 can_write=self.can_write,
                                 go_to_one_person_page=MainMsg::GoToOnePersonPage,
                                 db_connection=Some(self.db_connection.clone()),
+                                username=self.username.clone(),
+                                password=self.password.clone(),
                             />
                         },
                         Page::OnePerson(person) => html! {
@@ -125,6 +129,8 @@ impl Renderable<MainModel> for MainModel {
                                 can_write=self.can_write,
                                 go_to_persons_list_page=|_| MainMsg::GoToPersonsListPage,
                                 db_connection=Some(self.db_connection.clone()),
+                                username=self.username.clone(),
+                                password=self.password.clone(),
                             />
                         },
                     }

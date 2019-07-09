@@ -4,11 +4,75 @@ use actix_web::{http, web, web::Path, App, HttpRequest, HttpResponse, HttpServer
 use serde_derive::Deserialize;
 use serde_json::json;
 use std::sync::Mutex;
+use actix_web_httpauth::extractors::basic::{BasicAuth, Config};
 
 struct AppState {
     db: db_access::DbConnection,
 }
 
+#[derive(Deserialize)]
+pub struct Credentials {
+    username: Option<String>,
+    password: Option<String>,
+}
+
+use db_access::DbPrivilege;
+
+fn check_credentials(
+    auth: BasicAuth,
+    state: &web::Data<Mutex<AppState>>,
+    required_privilege: DbPrivilege,
+) -> Result<Vec<DbPrivilege>, String> {
+    let db_conn = &state.lock().unwrap().db;
+    if let Some(user) = db_conn.get_user_by_username(auth.user_id()) {
+        if auth.password().is_some() && &user.password == auth.password().unwrap() {
+            if user.privileges.contains(&required_privilege) {
+                Ok(user.privileges.clone())
+            } else {
+                Err(format!(
+                    "Insufficient privileges for user \"{}\".",
+                    user.username
+                ))
+            }
+        } else {
+            Err(format!("Invalid password for user \"{}\".", user.username))
+        }
+    } else {
+        Err(format!("User \"{}\" not found.", auth.user_id()))
+    }
+}
+
+/*
+fn authenticate(
+    state: web::Data<Mutex<AppState>>,
+    query: web::Query<Credentials>
+) -> impl Responder {
+    println!("In authenticate");
+    let db_conn = &state.lock().unwrap().db;
+    if query.username.is_none() {
+        return 
+    }
+    &query.username.clone().unwrap_or_else(|| "".to_string()),
+    &query.password.clone().unwrap_or_else(|| "".to_string()),
+
+    HttpResponse::Ok()
+        .content_type("application/json")
+        .body(
+            json!(db_conn
+                .get_privileges(
+                )
+                .collect::<Vec<_>>())
+            .to_string(),
+        )
+
+
+    HttpResponse::Ok()
+        .content_type("application/json")
+        .body(json!(db_conn.get_all_persons_ids().collect::<Vec<_>>()).to_string())
+}
+*/
+
+/*
 fn get_all_persons_ids(state: web::Data<Mutex<AppState>>) -> impl Responder {
     println!("In get_all_persons_ids");
     let db_conn = &state.lock().unwrap().db;
@@ -16,31 +80,10 @@ fn get_all_persons_ids(state: web::Data<Mutex<AppState>>) -> impl Responder {
         .content_type("application/json")
         .body(json!(db_conn.get_all_persons_ids().collect::<Vec<_>>()).to_string())
 }
-
-/*
-fn get_person_name_by_id(
-    state: web::Data<Mutex<AppState>>,
-    info: Path<(String,)>,
-) -> impl Responder {
-    println!("In get_person_name_by_id");
-    let id = &info.0;
-    let id = id.parse::<u32>();
-    if id.is_err() {
-        return HttpResponse::NotFound().finish();
-    }
-    let id = id.unwrap();
-    let db_conn = &state.lock().unwrap().db;
-    if let Some(name) = db_conn.get_person_name_by_id(id) {
-        HttpResponse::Ok()
-            .content_type("application/json")
-            .body(json!(name).to_string())
-    } else {
-        HttpResponse::NotFound().finish()
-    }
-}
 */
 
 fn get_person_by_id(
+    auth: BasicAuth,
     state: web::Data<Mutex<AppState>>,
     info: Path<(u32,)>,
 ) -> impl Responder {
@@ -62,6 +105,7 @@ pub struct Filter {
 }
 
 fn get_persons(
+    auth: BasicAuth,
     state: web::Data<Mutex<AppState>>,
     query: web::Query<Filter>
 ) -> impl Responder {
@@ -85,6 +129,7 @@ pub struct ToDelete {
 }
 
 fn delete_persons(
+    auth: BasicAuth,
     state: web::Data<Mutex<AppState>>,
     query: web::Query<ToDelete>
 ) -> impl Responder {
@@ -115,18 +160,27 @@ pub struct PersonData {
 }
 
 fn insert_person(
+    auth: BasicAuth,
     state: web::Data<Mutex<AppState>>,
-    query: web::Query<PersonData>
+    query: web::Query<PersonData>,
 ) -> impl Responder {
     println!("In insert_person");
-    let db_conn = &mut state.lock().unwrap().db;
-    let name = query.name.clone().unwrap();
-    HttpResponse::Ok()
-        .content_type("application/json")
-        .body(json!(db_conn.insert_person(db_access::Person { id: 0, name })).to_string())
+//    match check_credentials(auth, &state, DbPrivilege::CanWrite) {
+//        Ok(_) => {
+            let db_conn = &mut state.lock().unwrap().db;
+            let name = query.name.clone().unwrap();
+            HttpResponse::Ok()
+                .content_type("application/json")
+                .body(json!(db_conn.insert_person(db_access::Person { id: 0, name })).to_string())
+//        }
+//        Err(msg) => HttpResponse::Forbidden()
+//            .content_type("application/json")
+//            .body(json!(&msg).to_string())
+//    }
 }
 
 fn update_person(
+    auth: BasicAuth,
     state: web::Data<Mutex<AppState>>,
     query: web::Query<PersonData>
 ) -> impl Responder {
@@ -159,48 +213,40 @@ fn main() -> std::io::Result<()> {
     HttpServer::new(move || {
         App::new()
             .register_data(db_conn.clone())
+            .data(Config::default().realm("PersonsApp"))
+//            .data(Config::default())
             .wrap(
                 actix_cors::Cors::new()
                     //.allowed_origin("http://localhost:8000/")
                     //.allowed_origin("*")
-                    //.allowed_methods(vec!["GET", "POST", "PUT", "DELETE"])
-                    .allowed_methods(vec!["POST", "PUT", "DELETE"])
-                    //.allowed_headers(vec![http::header::AUTHORIZATION, http::header::ACCEPT])
+                    .allowed_methods(vec!["GET", "POST", "PUT", "DELETE"])
+                    .allowed_headers(vec![http::header::AUTHORIZATION, http::header::ACCEPT])
+                    //.allowed_headers(vec![http::header::AUTHORIZATION])
                     //.allowed_header(http::header::CONTENT_TYPE)
                     //.max_age(3600)
             )
 
+            //curl -X GET http://localhost:8080/authenticate?username=susan&password=xsusan
+            //.service(web::resource("/authenticate")
+            //    .route(web::get().to(authenticate))
+            //    .default_service(web::route().to(invalid_method))
+            //)
+
+            /*
             //curl -X GET http://localhost:8080/persons/ids
             .service(web::resource("/persons/ids")
                 .route(web::get().to(get_all_persons_ids))
                 .default_service(web::route().to(invalid_method))
             )
-            //curl -X GET http://localhost:8080/person/id/1
-            /*
-            .wrap(
-                actix_cors::Cors::new()
-                    .allowed_methods(vec!["DELETE"])
-            )
             */
+
+            //curl -X GET http://localhost:8080/person/id/1
             .service(web::resource("/person/id/{id}")
                 .route(web::get().to(get_person_by_id))
                 .default_service(web::route().to(invalid_method))
             )
             //curl -X GET http://localhost:8080/persons?partial_name=i
-            /*
-            .wrap(
-                actix_cors::Cors::new()
-                    .allowed_methods(vec!["DELETE"])
-            )
-            */
-            //DELETE
             //curl -X DELETE http://localhost:8080/persons?ids=1,3
-            /*
-            .wrap(
-                actix_cors::Cors::new()
-                    .allowed_methods(vec!["DELETE"])
-            )
-            */
             .service(web::resource("/persons")
                 .route(web::get().to(get_persons))
                 //.route(web::head().to(|| HttpResponse::MethodNotAllowed()))
@@ -208,12 +254,6 @@ fn main() -> std::io::Result<()> {
                 .default_service(web::route().to(invalid_method))
             )
 
-            /*
-            .wrap(
-                actix_cors::Cors::new()
-                    .allowed_methods(vec!["DELETE"])
-            )
-            */
             .service(web::resource("/one_person")
                 //curl -X POST http://localhost:8080/one_person?name=Juliet
                 .route(web::post().to(insert_person))

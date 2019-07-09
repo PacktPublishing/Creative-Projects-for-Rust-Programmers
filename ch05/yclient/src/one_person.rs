@@ -1,14 +1,26 @@
 use yew::{html, Callback, Component, ComponentLink, Html, Renderable, ShouldRender};
+use failure::Error;
+use yew::format::{Json, Nothing};
+use yew::services::{DialogService, ConsoleService};
+use yew::services::fetch::{FetchService, FetchTask, Request, Response};
 
 use crate::db_access::{DbConnection, Person};
 
 pub struct OnePersonModel {
+    fetching: bool,
+    fetch_service: FetchService,
+    ft: Option<FetchTask>,
+    link: ComponentLink<OnePersonModel>,
+    dialog: DialogService,
     id: Option<u32>,
     name: String,
     can_write: bool,
     is_inserting: bool,
     go_to_persons_list_page: Option<Callback<()>>,
     db_connection: std::rc::Rc<std::cell::RefCell<DbConnection>>,
+    console: ConsoleService,
+    username: String,
+    password: String,
 }
 
 #[derive(Debug)]
@@ -16,6 +28,8 @@ pub enum OnePersonMsg {
     NameChanged(String),
     SavePressed,
     CancelPressed,
+    SavedPerson,
+    Failure(String),
 }
 
 #[derive(PartialEq, Clone)]
@@ -25,6 +39,8 @@ pub struct OnePersonProps {
     pub can_write: bool,
     pub go_to_persons_list_page: Option<Callback<()>>,
     pub db_connection: Option<std::rc::Rc<std::cell::RefCell<DbConnection>>>,
+    pub username: String,
+    pub password: String,
 }
 
 impl Default for OnePersonProps {
@@ -35,6 +51,8 @@ impl Default for OnePersonProps {
             can_write: false,
             go_to_persons_list_page: None,
             db_connection: None,
+            username: String::new(),
+            password: String::new(),
         }
     }
 }
@@ -43,14 +61,22 @@ impl Component for OnePersonModel {
     type Message = OnePersonMsg;
     type Properties = OnePersonProps;
 
-    fn create(props: Self::Properties, _link: ComponentLink<Self>) -> Self {
+    fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {
         OnePersonModel {
+            fetching: false,
+            fetch_service: FetchService::new(),
+            ft: None,
+            link,
+            dialog: DialogService::new(),
             id: props.id,
             name: props.name,
             can_write: props.can_write,
             is_inserting: props.id.is_none(),
             go_to_persons_list_page: props.go_to_persons_list_page,
             db_connection: props.db_connection.unwrap(),
+            console: ConsoleService::new(),
+            username: props.username,
+            password: props.password,
         }
     }
 
@@ -58,25 +84,64 @@ impl Component for OnePersonModel {
         match msg {
             OnePersonMsg::NameChanged(name) => self.name = name,
             OnePersonMsg::SavePressed => {
-                if self.is_inserting {
-                    self.db_connection.borrow_mut().insert_person(Person {
-                        id: 0,
-                        name: self.name.clone(),
-                    });
-                } else {
-                    self.db_connection.borrow_mut().update_person(Person {
-                        id: self.id.unwrap(),
-                        name: self.name.clone(),
-                    });
-                }
-                if let Some(ref go_to_page) = self.go_to_persons_list_page {
-                    go_to_page.emit(());
-                }
+                self.fetching = true;
+                self.ft = Some({
+                    let callback = self.link.send_back(
+                        move |response: Response<Json<Result<bool, Error>>>| {
+                            let (meta, Json(data)) = response.into_parts();
+                            if meta.status.is_success() {
+                                OnePersonMsg::SavedPerson
+                            } else {
+                                OnePersonMsg::Failure(
+                                    format!("Cannot save the person."))
+                            }
+                        },
+                    );
+
+                    let encoded_name = url::form_urlencoded::byte_serialize(
+                        self.name.as_bytes()).collect::<String>();
+                    let mut request = if self.is_inserting {
+                        Request::post(format!(
+                            "http://localhost:8080/one_person?name={}",
+                        encoded_name))
+                    } else {
+                        Request::put(format!(
+                            "http://localhost:8080/one_person?id={}&name={}",
+                            self.id.unwrap(), encoded_name))
+                    }
+                    .body(Nothing).unwrap();
+
+                    let mut auth_string = "Basic ".to_string();
+                    base64::encode_config_buf(
+                        format!("{}:{}", self.username, self.username).as_bytes(),
+                        base64::STANDARD,
+                        &mut auth_string);
+                    request.headers_mut().append(
+                        "authorization",
+                        auth_string.parse().unwrap()
+                        );
+                    self.console.log(&format!("request.headers: {:?}.", request.headers()));
+
+                    self.fetch_service.fetch(
+                        request, callback)
+                });
             }
             OnePersonMsg::CancelPressed => {
                 if let Some(ref go_to_page) = self.go_to_persons_list_page {
                     go_to_page.emit(());
                 }
+            }
+
+            OnePersonMsg::SavedPerson => {
+                if let Some(ref go_to_page) = self.go_to_persons_list_page {
+                    go_to_page.emit(());
+                }
+            }
+            OnePersonMsg::Failure(msg) => {
+                self.fetching = false;
+                //self.console.log(&format!("Failure: {:?}.", msg));
+                self.dialog.alert(&msg);
+                return false;
             }
         }
         true
@@ -89,6 +154,8 @@ impl Component for OnePersonModel {
         self.is_inserting = props.id.is_none();
         self.go_to_persons_list_page = props.go_to_persons_list_page;
         self.db_connection = props.db_connection.unwrap();
+        self.username = props.username;
+        self.password = props.password;
         true
     }
 }

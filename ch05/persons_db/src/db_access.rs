@@ -1,38 +1,78 @@
 use serde_derive::Serialize;
+
 #[derive(Clone, Debug, Serialize)]
 pub struct Person {
     pub id: u32,
     pub name: String,
 }
 
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub enum DbPrivilege {
+    CanRead,
+    CanWrite,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct User {
+    pub username: String,
+    pub password: String,
+    pub privileges: Vec<DbPrivilege>,
+}
+
 pub struct DbConnection {
     persons: Vec<Person>,
+    users: Vec<User>,
 }
 
 impl DbConnection {
     pub fn new() -> DbConnection {
-        DbConnection { persons: vec![] }
+        DbConnection {
+            persons: vec![],
+            users: vec![
+                User {
+                    username: "joe".to_string(),
+                    password: "xjoe".to_string(),
+                    privileges: vec![DbPrivilege::CanRead],
+                },
+                User {
+                    username: "susan".to_string(),
+                    password: "xsusan".to_string(),
+                    privileges: vec![DbPrivilege::CanRead, DbPrivilege::CanWrite],
+                },
+            ],
+         }
     }
 
+    pub fn get_privilege_by_username_and_password(
+        &self,
+        username: &str,
+        password: &str,
+    ) -> Option<&User> {
+        if let Some(u) = self.users.iter().find(|u| u.username == username) {
+            Some(u)
+        } else {
+            None
+        }
+    }
+
+    /*
     pub fn get_all_persons_ids(&self) -> impl Iterator<Item = u32> + '_ {
         self.persons.iter().map(|p| p.id)
+    }
+    */
+
+    pub fn get_user_by_username(&self, username: &str) -> Option<User> {
+        if let Some(u) = self.users.iter().find(|u| u.username == username) {
+            Some(u.clone())
+        } else {
+            None
+        }
     }
 
     pub fn get_person_by_id(&self, id: u32) -> Option<Person> {
         Some(self.persons.iter().find(|p| p.id == id)?.clone())
     }
 
-/*
-    pub fn get_persons_id_and_name_by_partial_name<'a>(
-        &'a self,
-        subname: &'a str,
-    ) -> impl Iterator<Item = (u32, String)> + 'a {
-        self.persons
-            .iter()
-            .filter(move |p| p.name.contains(subname))
-            .map(|p| (p.id, p.name.clone()))
-    }
-*/
     pub fn get_persons_by_partial_name<'a>(
         &'a self,
         subname: &'a str,
