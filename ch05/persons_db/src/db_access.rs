@@ -6,13 +6,13 @@ pub struct Person {
     pub name: String,
 }
 
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Debug, Serialize)]
 pub enum DbPrivilege {
     CanRead,
     CanWrite,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct User {
     pub username: String,
     pub password: String,
@@ -40,26 +40,8 @@ impl DbConnection {
                     privileges: vec![DbPrivilege::CanRead, DbPrivilege::CanWrite],
                 },
             ],
-         }
-    }
-
-    pub fn get_privilege_by_username_and_password(
-        &self,
-        username: &str,
-        password: &str,
-    ) -> Option<&User> {
-        if let Some(u) = self.users.iter().find(|u| u.username == username) {
-            Some(u)
-        } else {
-            None
         }
     }
-
-    /*
-    pub fn get_all_persons_ids(&self) -> impl Iterator<Item = u32> + '_ {
-        self.persons.iter().map(|p| p.id)
-    }
-    */
 
     pub fn get_user_by_username(&self, username: &str) -> Option<User> {
         if let Some(u) = self.users.iter().find(|u| u.username == username) {

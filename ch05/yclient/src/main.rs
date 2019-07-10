@@ -5,7 +5,7 @@ mod db_access;
 use crate::login::LoginModel;
 use crate::one_person::OnePersonModel;
 use crate::persons_list::PersonsListModel;
-use db_access::{DbConnection, DbPrivilege, Person, User};
+use db_access::{DbPrivilege, Person, User};
 
 mod login;
 mod one_person;
@@ -22,7 +22,6 @@ pub struct MainModel {
     username: String,
     password: String,
     can_write: bool,
-    db_connection: std::rc::Rc<std::cell::RefCell<DbConnection>>,
 }
 
 #[derive(Debug)]
@@ -43,7 +42,6 @@ impl Component for MainModel {
             username: "".to_string(),
             password: "".to_string(),
             can_write: false,
-            db_connection: std::rc::Rc::new(std::cell::RefCell::new(DbConnection::new())),
         }
     }
 
@@ -108,7 +106,6 @@ impl Renderable<MainModel> for MainModel {
                         Page::Login => html! {
                             <LoginModel:
                                 when_logged_in=MainMsg::LoggedIn,
-                                db_connection=Some(self.db_connection.clone()),
                                 username=self.username.clone(),
                                 password=self.password.clone(),
                             />
@@ -117,7 +114,6 @@ impl Renderable<MainModel> for MainModel {
                             <PersonsListModel:
                                 can_write=self.can_write,
                                 go_to_one_person_page=MainMsg::GoToOnePersonPage,
-                                db_connection=Some(self.db_connection.clone()),
                                 username=self.username.clone(),
                                 password=self.password.clone(),
                             />
@@ -128,7 +124,6 @@ impl Renderable<MainModel> for MainModel {
                                 name=match person { Some(p) => p.name.clone(), None => "".to_string() },
                                 can_write=self.can_write,
                                 go_to_persons_list_page=|_| MainMsg::GoToPersonsListPage,
-                                db_connection=Some(self.db_connection.clone()),
                                 username=self.username.clone(),
                                 password=self.password.clone(),
                             />

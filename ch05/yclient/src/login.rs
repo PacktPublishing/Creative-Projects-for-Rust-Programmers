@@ -1,14 +1,22 @@
-use yew::services::DialogService;
+use failure::Error;
+use serde_derive::Deserialize;
+use yew::format::{Json, Nothing};
+use yew::services::fetch::{FetchService, FetchTask, Request, Response};
+use yew::services::{ConsoleService, DialogService};
 use yew::{html, Callback, Component, ComponentLink, Html, Renderable, ShouldRender};
 
-use crate::db_access::{DbConnection, User};
+use crate::db_access::{User, BACKEND_SITE};
 
 pub struct LoginModel {
+    fetching: bool,
+    fetch_service: FetchService,
+    ft: Option<FetchTask>,
+    link: ComponentLink<LoginModel>,
     dialog: DialogService,
     username: String,
     password: String,
     when_logged_in: Option<Callback<User>>,
-    db_connection: std::rc::Rc<std::cell::RefCell<DbConnection>>,
+    console: ConsoleService,
 }
 
 #[derive(Debug)]
@@ -16,6 +24,8 @@ pub enum LoginMsg {
     UsernameChanged(String),
     PasswordChanged(String),
     LoginPressed,
+    ReadyLogin(User),
+    Failure(String),
 }
 
 #[derive(PartialEq, Clone)]
@@ -23,7 +33,6 @@ pub struct LoginProps {
     pub username: String,
     pub password: String,
     pub when_logged_in: Option<Callback<User>>,
-    pub db_connection: Option<std::rc::Rc<std::cell::RefCell<DbConnection>>>,
 }
 
 impl Default for LoginProps {
@@ -32,28 +41,31 @@ impl Default for LoginProps {
             username: "".to_string(),
             password: "".to_string(),
             when_logged_in: None,
-            db_connection: None,
         }
     }
 }
 
-//#[derive(Clone, Copy, PartialEq, Debug)]
-pub enum DbPrivilege {
-    CanRead,
-    CanWrite,
+#[derive(Deserialize)]
+enum AuthenticationResult {
+    LoggedUser(User),
+    ErrorMessage(String),
 }
 
 impl Component for LoginModel {
     type Message = LoginMsg;
     type Properties = LoginProps;
 
-    fn create(props: Self::Properties, _link: ComponentLink<Self>) -> Self {
+    fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {
         LoginModel {
+            fetching: false,
+            fetch_service: FetchService::new(),
+            ft: None,
+            link,
             dialog: DialogService::new(),
             username: props.username,
-            password: String::new(),
+            password: props.password,
             when_logged_in: props.when_logged_in,
-            db_connection: props.db_connection.unwrap(),
+            console: ConsoleService::new(),
         }
     }
 
@@ -66,51 +78,59 @@ impl Component for LoginModel {
                     self.dialog.alert("User not specified.");
                     return false;
                 }
-                /*
                 self.fetching = true;
                 self.ft = Some({
                     let callback = self.link.send_back(
-                        move |response: Response<Json<Result<Vec<Privileges>, Error>>>| {
-                            let (meta, Json(data)) = response.into_parts();
-                            if meta.status.is_success() {
-                                PersonsListMsg::ReadyFilteredPersons(data)
-                            } else {
-                                PersonsListMsg::Failure(
-                                    format!("No persons found."))
+                        move |response: Response<Json<Result<AuthenticationResult, Error>>>| {
+                            let (_, Json(data)) = response.into_parts();
+                            match data {
+                                Ok(auth_res) => match auth_res {
+                                    AuthenticationResult::LoggedUser(user) => {
+                                        LoginMsg::ReadyLogin(user)
+                                    }
+                                    AuthenticationResult::ErrorMessage(msg) => {
+                                        LoginMsg::Failure(msg)
+                                    }
+                                },
+                                Err(err_msg) => LoginMsg::Failure(format!(
+                                    "Authentication failed: {}.",
+                                    err_msg
+                                )),
                             }
                         },
                     );
 
-                    let request = Request::get(
-                        "http://localhost:8080/persons?partial_name=".to_string() +
-                        &url::form_urlencoded::byte_serialize(
-                            self.name_portion.as_bytes()).collect::<String>()
-                        ).body(Nothing).unwrap();
-                    
+                    let mut request = Request::get(format!("{}authenticate", BACKEND_SITE))
+                        .body(Nothing)
+                        .unwrap();
+
+                    let mut auth_string = "Basic ".to_string();
+                    base64::encode_config_buf(
+                        format!("{}:{}", self.username, self.password).as_bytes(),
+                        base64::STANDARD,
+                        &mut auth_string,
+                    );
+                    request
+                        .headers_mut()
+                        .append("authorization", auth_string.parse().unwrap());
+                    self.console
+                        .log(&format!("1 request.headers: {:?}.", request.headers()));
+
                     self.fetch_service.fetch(request, callback)
                 });
-                */
-
-
-
-                //TODO fetch
-
-                if let Some(user) = self
-                    .db_connection
-                    .borrow()
-                    .get_user_by_username(&self.username)
-                {
-                    if user.password == self.password {
-                        if let Some(ref go_to_page) = self.when_logged_in {
-                            go_to_page.emit(user.clone());
-                        }
-                    } else {
-                        self.dialog
-                            .alert("Invalid password for the specified user.");
-                    }
-                } else {
-                    self.dialog.alert("User not specified.");
+            }
+            LoginMsg::ReadyLogin(user) => {
+                self.fetching = false;
+                self.console.log(&format!("User: {:?}.", user));
+                if let Some(ref go_to_page) = self.when_logged_in {
+                    go_to_page.emit(user.clone());
                 }
+            }
+            LoginMsg::Failure(msg) => {
+                self.fetching = false;
+                self.console.log(&format!("Failure: {:?}.", msg));
+                self.dialog.alert(&msg);
+                return false;
             }
         }
         true
@@ -118,8 +138,8 @@ impl Component for LoginModel {
 
     fn change(&mut self, props: Self::Properties) -> ShouldRender {
         self.username = props.username;
+        self.password = props.password;
         self.when_logged_in = props.when_logged_in;
-        self.db_connection = props.db_connection.unwrap();
         true
     }
 }

@@ -1,10 +1,10 @@
-use yew::{html, Callback, Component, ComponentLink, Html, Renderable, ShouldRender};
 use failure::Error;
 use yew::format::{Json, Nothing};
-use yew::services::{DialogService, ConsoleService};
 use yew::services::fetch::{FetchService, FetchTask, Request, Response};
+use yew::services::{ConsoleService, DialogService};
+use yew::{html, Callback, Component, ComponentLink, Html, Renderable, ShouldRender};
 
-use crate::db_access::{DbConnection, Person};
+use crate::db_access::BACKEND_SITE;
 
 pub struct OnePersonModel {
     fetching: bool,
@@ -17,7 +17,6 @@ pub struct OnePersonModel {
     can_write: bool,
     is_inserting: bool,
     go_to_persons_list_page: Option<Callback<()>>,
-    db_connection: std::rc::Rc<std::cell::RefCell<DbConnection>>,
     console: ConsoleService,
     username: String,
     password: String,
@@ -38,7 +37,6 @@ pub struct OnePersonProps {
     pub name: String,
     pub can_write: bool,
     pub go_to_persons_list_page: Option<Callback<()>>,
-    pub db_connection: Option<std::rc::Rc<std::cell::RefCell<DbConnection>>>,
     pub username: String,
     pub password: String,
 }
@@ -50,7 +48,6 @@ impl Default for OnePersonProps {
             name: "".to_string(),
             can_write: false,
             go_to_persons_list_page: None,
-            db_connection: None,
             username: String::new(),
             password: String::new(),
         }
@@ -73,7 +70,6 @@ impl Component for OnePersonModel {
             can_write: props.can_write,
             is_inserting: props.id.is_none(),
             go_to_persons_list_page: props.go_to_persons_list_page,
-            db_connection: props.db_connection.unwrap(),
             console: ConsoleService::new(),
             username: props.username,
             password: props.password,
@@ -88,42 +84,43 @@ impl Component for OnePersonModel {
                 self.ft = Some({
                     let callback = self.link.send_back(
                         move |response: Response<Json<Result<bool, Error>>>| {
-                            let (meta, Json(data)) = response.into_parts();
+                            let (meta, Json(_)) = response.into_parts();
                             if meta.status.is_success() {
                                 OnePersonMsg::SavedPerson
                             } else {
-                                OnePersonMsg::Failure(
-                                    format!("Cannot save the person."))
+                                OnePersonMsg::Failure("Cannot save the person.".to_string())
                             }
                         },
                     );
 
-                    let encoded_name = url::form_urlencoded::byte_serialize(
-                        self.name.as_bytes()).collect::<String>();
+                    let encoded_name = url::form_urlencoded::byte_serialize(self.name.as_bytes())
+                        .collect::<String>();
                     let mut request = if self.is_inserting {
-                        Request::post(format!(
-                            "http://localhost:8080/one_person?name={}",
-                        encoded_name))
+                        Request::post(format!("{}one_person?name={}", BACKEND_SITE, encoded_name))
                     } else {
                         Request::put(format!(
-                            "http://localhost:8080/one_person?id={}&name={}",
-                            self.id.unwrap(), encoded_name))
+                            "{}one_person?id={}&name={}",
+                            BACKEND_SITE,
+                            self.id.unwrap(),
+                            encoded_name
+                        ))
                     }
-                    .body(Nothing).unwrap();
+                    .body(Nothing)
+                    .unwrap();
 
                     let mut auth_string = "Basic ".to_string();
                     base64::encode_config_buf(
-                        format!("{}:{}", self.username, self.username).as_bytes(),
+                        format!("{}:{}", self.username, self.password).as_bytes(),
                         base64::STANDARD,
-                        &mut auth_string);
-                    request.headers_mut().append(
-                        "authorization",
-                        auth_string.parse().unwrap()
-                        );
-                    self.console.log(&format!("request.headers: {:?}.", request.headers()));
+                        &mut auth_string,
+                    );
+                    request
+                        .headers_mut()
+                        .append("authorization", auth_string.parse().unwrap());
+                    self.console
+                        .log(&format!("2 request.headers: {:?}.", request.headers()));
 
-                    self.fetch_service.fetch(
-                        request, callback)
+                    self.fetch_service.fetch(request, callback)
                 });
             }
             OnePersonMsg::CancelPressed => {
@@ -139,7 +136,7 @@ impl Component for OnePersonModel {
             }
             OnePersonMsg::Failure(msg) => {
                 self.fetching = false;
-                //self.console.log(&format!("Failure: {:?}.", msg));
+                self.console.log(&format!("Failure: {:?}.", msg));
                 self.dialog.alert(&msg);
                 return false;
             }
@@ -153,7 +150,6 @@ impl Component for OnePersonModel {
         self.can_write = props.can_write;
         self.is_inserting = props.id.is_none();
         self.go_to_persons_list_page = props.go_to_persons_list_page;
-        self.db_connection = props.db_connection.unwrap();
         self.username = props.username;
         self.password = props.password;
         true
