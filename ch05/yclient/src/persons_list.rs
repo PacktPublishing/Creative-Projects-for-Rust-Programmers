@@ -4,7 +4,7 @@ use yew::services::fetch::{FetchService, FetchTask, Request, Response};
 use yew::services::{ConsoleService, DialogService};
 use yew::{html, Callback, Component, ComponentLink, Html, Renderable, ShouldRender};
 
-use crate::db_access::{Person, BACKEND_SITE};
+use crate::common::{Person, BACKEND_SITE, add_auth};
 
 pub struct PersonsListModel {
     fetching: bool,
@@ -101,44 +101,33 @@ impl Component for PersonsListModel {
                     .confirm("Do you confirm to delete the selected persons?")
                 {
                     self.fetching = true;
-                    self.ft = Some({
-                        let callback = self.link.send_back(
-                            move |response: Response<Json<Result<u32, Error>>>| {
-                                let (meta, Json(data)) = response.into_parts();
-                                if meta.status.is_success() {
-                                    PersonsListMsg::ReadyDeletedPersons(data)
-                                } else {
-                                    PersonsListMsg::Failure("No persons deleted.".to_string())
-                                }
-                            },
-                        );
+                    let callback = self.link.send_back(
+                        move |response: Response<Json<Result<u32, Error>>>| {
+                            let (meta, Json(data)) = response.into_parts();
+                            if meta.status.is_success() {
+                                PersonsListMsg::ReadyDeletedPersons(data)
+                            } else {
+                                PersonsListMsg::Failure("No persons deleted.".to_string())
+                            }
+                        },
+                    );
 
-                        let mut request = Request::delete(&format!(
-                            "{}persons?id_list={}",
-                            BACKEND_SITE,
-                            self.selected_ids
-                                .iter()
-                                .map(|id| id.to_string())
-                                .collect::<Vec<_>>()
-                                .join(",")
-                        ))
-                        .body(Nothing)
-                        .unwrap();
+                    let mut request = Request::delete(&format!(
+                        "{}persons?id_list={}",
+                        BACKEND_SITE,
+                        self.selected_ids
+                            .iter()
+                            .map(|id| id.to_string())
+                            .collect::<Vec<_>>()
+                            .join(",")
+                    ))
+                    .body(Nothing)
+                    .unwrap();
 
-                        let mut auth_string = "Basic ".to_string();
-                        base64::encode_config_buf(
-                            format!("{}:{}", self.username, self.password).as_bytes(),
-                            base64::STANDARD,
-                            &mut auth_string,
-                        );
-                        request
-                            .headers_mut()
-                            .append("authorization", auth_string.parse().unwrap());
-                        self.console
-                            .log(&format!("3 request.headers: {:?}.", request.headers()));
-
+                    add_auth(&self.username, &self.password, &mut request);
+                    self.ft = Some(
                         self.fetch_service.fetch(request, callback)
-                    });
+                    );
                 }
             }
             PersonsListMsg::ReadyDeletedPersons(response) => {
@@ -165,38 +154,27 @@ impl Component for PersonsListModel {
             PersonsListMsg::EditPressed(id) => {
                 self.fetching = true;
                 self.console.log(&format!("EditPressed: {:?}.", id));
-                self.ft = Some({
-                    let callback = self.link.send_back(
-                        move |response: Response<Json<Result<Person, Error>>>| {
-                            let (meta, Json(data)) = response.into_parts();
-                            if meta.status.is_success() {
-                                PersonsListMsg::ReadyPersonToEdit(data)
-                            } else {
-                                PersonsListMsg::Failure(
-                                    "No person found with the indicated id".to_string(),
-                                )
-                            }
-                        },
-                    );
+                let callback = self.link.send_back(
+                    move |response: Response<Json<Result<Person, Error>>>| {
+                        let (meta, Json(data)) = response.into_parts();
+                        if meta.status.is_success() {
+                            PersonsListMsg::ReadyPersonToEdit(data)
+                        } else {
+                            PersonsListMsg::Failure(
+                                "No person found with the indicated id".to_string(),
+                            )
+                        }
+                    },
+                );
 
-                    let mut request = Request::get(format!("{}person/id/{}", BACKEND_SITE, id))
-                        .body(Nothing)
-                        .unwrap();
+                let mut request = Request::get(format!("{}person/id/{}", BACKEND_SITE, id))
+                    .body(Nothing)
+                    .unwrap();
 
-                    let mut auth_string = "Basic ".to_string();
-                    base64::encode_config_buf(
-                        format!("{}:{}", self.username, self.password).as_bytes(),
-                        base64::STANDARD,
-                        &mut auth_string,
-                    );
-                    request
-                        .headers_mut()
-                        .append("authorization", auth_string.parse().unwrap());
-                    self.console
-                        .log(&format!("4 request.headers: {:?}.", request.headers()));
-
+                add_auth(&self.username, &self.password, &mut request);
+                self.ft = Some(
                     self.fetch_service.fetch(request, callback)
-                });
+                );
             }
             PersonsListMsg::ReadyPersonToEdit(person) => {
                 self.fetching = false;
@@ -212,41 +190,30 @@ impl Component for PersonsListModel {
             }
             PersonsListMsg::FilterPressed => {
                 self.fetching = true;
-                self.ft = Some({
-                    let callback = self.link.send_back(
-                        move |response: Response<Json<Result<Vec<Person>, Error>>>| {
-                            let (meta, Json(data)) = response.into_parts();
-                            if meta.status.is_success() {
-                                PersonsListMsg::ReadyFilteredPersons(data)
-                            } else {
-                                PersonsListMsg::Failure("No persons found.".to_string())
-                            }
-                        },
-                    );
+                let callback = self.link.send_back(
+                    move |response: Response<Json<Result<Vec<Person>, Error>>>| {
+                        let (meta, Json(data)) = response.into_parts();
+                        if meta.status.is_success() {
+                            PersonsListMsg::ReadyFilteredPersons(data)
+                        } else {
+                            PersonsListMsg::Failure("No persons found.".to_string())
+                        }
+                    },
+                );
 
-                    let mut request = Request::get(format!(
-                        "{}persons?partial_name={}",
-                        BACKEND_SITE,
-                        url::form_urlencoded::byte_serialize(self.name_portion.as_bytes())
-                            .collect::<String>()
-                    ))
-                    .body(Nothing)
-                    .unwrap();
+                let mut request = Request::get(format!(
+                    "{}persons?partial_name={}",
+                    BACKEND_SITE,
+                    url::form_urlencoded::byte_serialize(self.name_portion.as_bytes())
+                        .collect::<String>()
+                ))
+                .body(Nothing)
+                .unwrap();
 
-                    let mut auth_string = "Basic ".to_string();
-                    base64::encode_config_buf(
-                        format!("{}:{}", self.username, self.password).as_bytes(),
-                        base64::STANDARD,
-                        &mut auth_string,
-                    );
-                    request
-                        .headers_mut()
-                        .append("authorization", auth_string.parse().unwrap());
-                    self.console
-                        .log(&format!("5 request.headers: {:?}.", request.headers()));
-
+                add_auth(&self.username, &self.password, &mut request);
+                self.ft = Some(
                     self.fetch_service.fetch(request, callback)
-                });
+                );
             }
             PersonsListMsg::ReadyFilteredPersons(response) => {
                 self.fetching = false;

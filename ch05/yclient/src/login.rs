@@ -5,7 +5,7 @@ use yew::services::fetch::{FetchService, FetchTask, Request, Response};
 use yew::services::{ConsoleService, DialogService};
 use yew::{html, Callback, Component, ComponentLink, Html, Renderable, ShouldRender};
 
-use crate::db_access::{User, BACKEND_SITE};
+use crate::common::{User, BACKEND_SITE, add_auth};
 
 pub struct LoginModel {
     fetching: bool,
@@ -79,45 +79,34 @@ impl Component for LoginModel {
                     return false;
                 }
                 self.fetching = true;
-                self.ft = Some({
-                    let callback = self.link.send_back(
-                        move |response: Response<Json<Result<AuthenticationResult, Error>>>| {
-                            let (_, Json(data)) = response.into_parts();
-                            match data {
-                                Ok(auth_res) => match auth_res {
-                                    AuthenticationResult::LoggedUser(user) => {
-                                        LoginMsg::ReadyLogin(user)
-                                    }
-                                    AuthenticationResult::ErrorMessage(msg) => {
-                                        LoginMsg::Failure(msg)
-                                    }
-                                },
-                                Err(err_msg) => LoginMsg::Failure(format!(
-                                    "Authentication failed: {}.",
-                                    err_msg
-                                )),
-                            }
-                        },
-                    );
+                let callback = self.link.send_back(
+                    move |response: Response<Json<Result<AuthenticationResult, Error>>>| {
+                        let (_, Json(data)) = response.into_parts();
+                        match data {
+                            Ok(auth_res) => match auth_res {
+                                AuthenticationResult::LoggedUser(user) => {
+                                    LoginMsg::ReadyLogin(user)
+                                }
+                                AuthenticationResult::ErrorMessage(msg) => {
+                                    LoginMsg::Failure(msg)
+                                }
+                            },
+                            Err(err_msg) => LoginMsg::Failure(format!(
+                                "Authentication failed: {}.",
+                                err_msg
+                            )),
+                        }
+                    },
+                );
 
-                    let mut request = Request::get(format!("{}authenticate", BACKEND_SITE))
-                        .body(Nothing)
-                        .unwrap();
+                let mut request = Request::get(format!("{}authenticate", BACKEND_SITE))
+                    .body(Nothing)
+                    .unwrap();
 
-                    let mut auth_string = "Basic ".to_string();
-                    base64::encode_config_buf(
-                        format!("{}:{}", self.username, self.password).as_bytes(),
-                        base64::STANDARD,
-                        &mut auth_string,
-                    );
-                    request
-                        .headers_mut()
-                        .append("authorization", auth_string.parse().unwrap());
-                    self.console
-                        .log(&format!("1 request.headers: {:?}.", request.headers()));
-
+                add_auth(&self.username, &self.password, &mut request);
+                self.ft = Some(
                     self.fetch_service.fetch(request, callback)
-                });
+                );
             }
             LoginMsg::ReadyLogin(user) => {
                 self.fetching = false;

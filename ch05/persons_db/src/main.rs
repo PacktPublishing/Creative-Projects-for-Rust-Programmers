@@ -1,6 +1,6 @@
 mod db_access;
 
-use actix_web::{http, web, web::Path, App, HttpRequest, HttpResponse, HttpServer, Responder};
+use actix_web::{web, web::Path, App, HttpRequest, HttpResponse, HttpServer, Responder};
 use actix_web_httpauth::extractors::basic::{BasicAuth, Config};
 use serde_derive::{Deserialize, Serialize};
 use serde_json::json;
@@ -236,7 +236,6 @@ fn main() -> std::io::Result<()> {
             .wrap(
                 actix_cors::Cors::new()
                     .allowed_methods(vec!["GET", "POST", "PUT", "DELETE"])
-                    .allowed_headers(vec![http::header::AUTHORIZATION, http::header::ACCEPT]),
             )
             .service(
                 web::resource("/authenticate")

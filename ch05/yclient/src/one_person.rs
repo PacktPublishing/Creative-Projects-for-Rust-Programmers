@@ -4,7 +4,7 @@ use yew::services::fetch::{FetchService, FetchTask, Request, Response};
 use yew::services::{ConsoleService, DialogService};
 use yew::{html, Callback, Component, ComponentLink, Html, Renderable, ShouldRender};
 
-use crate::db_access::BACKEND_SITE;
+use crate::common::{BACKEND_SITE, add_auth};
 
 pub struct OnePersonModel {
     fetching: bool,
@@ -81,47 +81,36 @@ impl Component for OnePersonModel {
             OnePersonMsg::NameChanged(name) => self.name = name,
             OnePersonMsg::SavePressed => {
                 self.fetching = true;
-                self.ft = Some({
-                    let callback = self.link.send_back(
-                        move |response: Response<Json<Result<bool, Error>>>| {
-                            let (meta, Json(_)) = response.into_parts();
-                            if meta.status.is_success() {
-                                OnePersonMsg::SavedPerson
-                            } else {
-                                OnePersonMsg::Failure("Cannot save the person.".to_string())
-                            }
-                        },
-                    );
+                let callback = self.link.send_back(
+                    move |response: Response<Json<Result<bool, Error>>>| {
+                        let (meta, Json(_)) = response.into_parts();
+                        if meta.status.is_success() {
+                            OnePersonMsg::SavedPerson
+                        } else {
+                            OnePersonMsg::Failure("Cannot save the person.".to_string())
+                        }
+                    },
+                );
 
-                    let encoded_name = url::form_urlencoded::byte_serialize(self.name.as_bytes())
-                        .collect::<String>();
-                    let mut request = if self.is_inserting {
-                        Request::post(format!("{}one_person?name={}", BACKEND_SITE, encoded_name))
-                    } else {
-                        Request::put(format!(
-                            "{}one_person?id={}&name={}",
-                            BACKEND_SITE,
-                            self.id.unwrap(),
-                            encoded_name
-                        ))
-                    }
-                    .body(Nothing)
-                    .unwrap();
+                let encoded_name = url::form_urlencoded::byte_serialize(self.name.as_bytes())
+                    .collect::<String>();
+                let mut request = if self.is_inserting {
+                    Request::post(format!("{}one_person?name={}", BACKEND_SITE, encoded_name))
+                } else {
+                    Request::put(format!(
+                        "{}one_person?id={}&name={}",
+                        BACKEND_SITE,
+                        self.id.unwrap(),
+                        encoded_name
+                    ))
+                }
+                .body(Nothing)
+                .unwrap();
 
-                    let mut auth_string = "Basic ".to_string();
-                    base64::encode_config_buf(
-                        format!("{}:{}", self.username, self.password).as_bytes(),
-                        base64::STANDARD,
-                        &mut auth_string,
-                    );
-                    request
-                        .headers_mut()
-                        .append("authorization", auth_string.parse().unwrap());
-                    self.console
-                        .log(&format!("2 request.headers: {:?}.", request.headers()));
-
+                add_auth(&self.username, &self.password, &mut request);
+                self.ft = Some(
                     self.fetch_service.fetch(request, callback)
-                });
+                );
             }
             OnePersonMsg::CancelPressed => {
                 if let Some(ref go_to_page) = self.go_to_persons_list_page {

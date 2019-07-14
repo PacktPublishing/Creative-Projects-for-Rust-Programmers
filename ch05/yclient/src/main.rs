@@ -1,11 +1,11 @@
 #![recursion_limit = "128"]
 use yew::{html, Component, ComponentLink, Html, Renderable, ShouldRender};
 
-mod db_access;
+mod common;
 use crate::login::LoginModel;
 use crate::one_person::OnePersonModel;
 use crate::persons_list::PersonsListModel;
-use db_access::{DbPrivilege, Person, User};
+use common::{DbPrivilege, Person, User};
 
 mod login;
 mod one_person;
