@@ -1,9 +1,9 @@
-use serde_derive::{Deserialize, Serialize};
+use serde_derive::Deserialize;
 use yew::services::fetch::Request;
 
 pub const BACKEND_SITE: &str = "http://localhost:8080/";
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize)]
 pub struct Person {
     pub id: u32,
     pub name: String,

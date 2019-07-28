@@ -5,7 +5,7 @@ use yew::services::fetch::{FetchService, FetchTask, Request, Response};
 use yew::services::{ConsoleService, DialogService};
 use yew::{html, Callback, Component, ComponentLink, Html, Renderable, ShouldRender};
 
-use crate::common::{User, BACKEND_SITE, add_auth};
+use crate::common::{add_auth, User, BACKEND_SITE};
 
 pub struct LoginModel {
     fetching: bool,
@@ -87,14 +87,11 @@ impl Component for LoginModel {
                                 AuthenticationResult::LoggedUser(user) => {
                                     LoginMsg::ReadyLogin(user)
                                 }
-                                AuthenticationResult::ErrorMessage(msg) => {
-                                    LoginMsg::Failure(msg)
-                                }
+                                AuthenticationResult::ErrorMessage(msg) => LoginMsg::Failure(msg),
                             },
-                            Err(err_msg) => LoginMsg::Failure(format!(
-                                "Authentication failed: {}.",
-                                err_msg
-                            )),
+                            Err(err_msg) => {
+                                LoginMsg::Failure(format!("Authentication failed: {}.", err_msg))
+                            }
                         }
                     },
                 );
@@ -104,9 +101,7 @@ impl Component for LoginModel {
                     .unwrap();
 
                 add_auth(&self.username, &self.password, &mut request);
-                self.ft = Some(
-                    self.fetch_service.fetch(request, callback)
-                );
+                self.ft = Some(self.fetch_service.fetch(request, callback));
             }
             LoginMsg::ReadyLogin(user) => {
                 self.fetching = false;

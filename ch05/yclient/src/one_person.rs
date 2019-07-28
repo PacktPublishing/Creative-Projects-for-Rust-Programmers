@@ -4,7 +4,7 @@ use yew::services::fetch::{FetchService, FetchTask, Request, Response};
 use yew::services::{ConsoleService, DialogService};
 use yew::{html, Callback, Component, ComponentLink, Html, Renderable, ShouldRender};
 
-use crate::common::{BACKEND_SITE, add_auth};
+use crate::common::{add_auth, BACKEND_SITE};
 
 pub struct OnePersonModel {
     fetching: bool,
@@ -81,19 +81,19 @@ impl Component for OnePersonModel {
             OnePersonMsg::NameChanged(name) => self.name = name,
             OnePersonMsg::SavePressed => {
                 self.fetching = true;
-                let callback = self.link.send_back(
-                    move |response: Response<Json<Result<bool, Error>>>| {
-                        let (meta, Json(_)) = response.into_parts();
-                        if meta.status.is_success() {
-                            OnePersonMsg::SavedPerson
-                        } else {
-                            OnePersonMsg::Failure("Cannot save the person.".to_string())
-                        }
-                    },
-                );
+                let callback =
+                    self.link
+                        .send_back(move |response: Response<Json<Result<bool, Error>>>| {
+                            let (meta, Json(_)) = response.into_parts();
+                            if meta.status.is_success() {
+                                OnePersonMsg::SavedPerson
+                            } else {
+                                OnePersonMsg::Failure("Cannot save the person.".to_string())
+                            }
+                        });
 
-                let encoded_name = url::form_urlencoded::byte_serialize(self.name.as_bytes())
-                    .collect::<String>();
+                let encoded_name =
+                    url::form_urlencoded::byte_serialize(self.name.as_bytes()).collect::<String>();
                 let mut request = if self.is_inserting {
                     Request::post(format!("{}one_person?name={}", BACKEND_SITE, encoded_name))
                 } else {
@@ -108,9 +108,7 @@ impl Component for OnePersonModel {
                 .unwrap();
 
                 add_auth(&self.username, &self.password, &mut request);
-                self.ft = Some(
-                    self.fetch_service.fetch(request, callback)
-                );
+                self.ft = Some(self.fetch_service.fetch(request, callback));
             }
             OnePersonMsg::CancelPressed => {
                 if let Some(ref go_to_page) = self.go_to_persons_list_page {

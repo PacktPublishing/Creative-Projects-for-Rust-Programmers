@@ -20,8 +20,8 @@ struct Screen {
 }
 
 impl Screen {
-    fn steer(&mut self, direction: i8) {
-        self.direction += STEERING_SPEED * direction as f32;
+    fn steer(&mut self, direction: f32) {
+        self.direction += STEERING_SPEED * direction;
         if self.direction > MAX_ANGLE {
             self.direction = MAX_ANGLE;
         }
@@ -41,10 +41,10 @@ impl State for Screen {
 
     fn update(&mut self, window: &mut Window) -> Result<()> {
         if window.keyboard()[Key::Right].is_down() {
-            self.steer(1);
+            self.steer(1.);
         }
         if window.keyboard()[Key::Left].is_down() {
-            self.steer(-1);
+            self.steer(-1.);
         }
         Ok(())
     }

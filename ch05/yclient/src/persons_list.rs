@@ -4,7 +4,7 @@ use yew::services::fetch::{FetchService, FetchTask, Request, Response};
 use yew::services::{ConsoleService, DialogService};
 use yew::{html, Callback, Component, ComponentLink, Html, Renderable, ShouldRender};
 
-use crate::common::{Person, BACKEND_SITE, add_auth};
+use crate::common::{add_auth, Person, BACKEND_SITE};
 
 pub struct PersonsListModel {
     fetching: bool,
@@ -101,16 +101,16 @@ impl Component for PersonsListModel {
                     .confirm("Do you confirm to delete the selected persons?")
                 {
                     self.fetching = true;
-                    let callback = self.link.send_back(
-                        move |response: Response<Json<Result<u32, Error>>>| {
-                            let (meta, Json(data)) = response.into_parts();
-                            if meta.status.is_success() {
-                                PersonsListMsg::ReadyDeletedPersons(data)
-                            } else {
-                                PersonsListMsg::Failure("No persons deleted.".to_string())
-                            }
-                        },
-                    );
+                    let callback =
+                        self.link
+                            .send_back(move |response: Response<Json<Result<u32, Error>>>| {
+                                let (meta, Json(data)) = response.into_parts();
+                                if meta.status.is_success() {
+                                    PersonsListMsg::ReadyDeletedPersons(data)
+                                } else {
+                                    PersonsListMsg::Failure("No persons deleted.".to_string())
+                                }
+                            });
 
                     let mut request = Request::delete(&format!(
                         "{}persons?id_list={}",
@@ -125,9 +125,7 @@ impl Component for PersonsListModel {
                     .unwrap();
 
                     add_auth(&self.username, &self.password, &mut request);
-                    self.ft = Some(
-                        self.fetch_service.fetch(request, callback)
-                    );
+                    self.ft = Some(self.fetch_service.fetch(request, callback));
                 }
             }
             PersonsListMsg::ReadyDeletedPersons(response) => {
@@ -154,27 +152,25 @@ impl Component for PersonsListModel {
             PersonsListMsg::EditPressed(id) => {
                 self.fetching = true;
                 self.console.log(&format!("EditPressed: {:?}.", id));
-                let callback = self.link.send_back(
-                    move |response: Response<Json<Result<Person, Error>>>| {
-                        let (meta, Json(data)) = response.into_parts();
-                        if meta.status.is_success() {
-                            PersonsListMsg::ReadyPersonToEdit(data)
-                        } else {
-                            PersonsListMsg::Failure(
-                                "No person found with the indicated id".to_string(),
-                            )
-                        }
-                    },
-                );
+                let callback =
+                    self.link
+                        .send_back(move |response: Response<Json<Result<Person, Error>>>| {
+                            let (meta, Json(data)) = response.into_parts();
+                            if meta.status.is_success() {
+                                PersonsListMsg::ReadyPersonToEdit(data)
+                            } else {
+                                PersonsListMsg::Failure(
+                                    "No person found with the indicated id".to_string(),
+                                )
+                            }
+                        });
 
                 let mut request = Request::get(format!("{}person/id/{}", BACKEND_SITE, id))
                     .body(Nothing)
                     .unwrap();
 
                 add_auth(&self.username, &self.password, &mut request);
-                self.ft = Some(
-                    self.fetch_service.fetch(request, callback)
-                );
+                self.ft = Some(self.fetch_service.fetch(request, callback));
             }
             PersonsListMsg::ReadyPersonToEdit(person) => {
                 self.fetching = false;
@@ -211,9 +207,7 @@ impl Component for PersonsListModel {
                 .unwrap();
 
                 add_auth(&self.username, &self.password, &mut request);
-                self.ft = Some(
-                    self.fetch_service.fetch(request, callback)
-                );
+                self.ft = Some(self.fetch_service.fetch(request, callback));
             }
             PersonsListMsg::ReadyFilteredPersons(response) => {
                 self.fetching = false;
