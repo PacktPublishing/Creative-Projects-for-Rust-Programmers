@@ -1,0 +1,9 @@
+[package]
+name = "silent_slalom"
+version = "0.1.0"
+authors = []
+edition = "2018"
+
+[dependencies]
+quicksilver = "0.3"
+rand = "0.6"

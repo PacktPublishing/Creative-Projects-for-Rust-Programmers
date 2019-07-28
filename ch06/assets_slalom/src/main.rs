@@ -293,7 +293,6 @@ fn main() {
         Settings {
             draw_rate: 40.,
             update_rate: 40.,
-            //vsync: false,
             ..Settings::default()
         },
     );
