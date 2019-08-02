@@ -1,9 +1,9 @@
 use quicksilver::{
-    Result,
-    geom::{Rectangle, Triangle, Vector, Transform},
+    geom::{Rectangle, Transform, Triangle, Vector},
     graphics::{Background, Color},
     input::Key,
-    lifecycle::{Settings, State, Window, run},
+    lifecycle::{run, Settings, State, Window},
+    Result,
 };
 
 const SCREEN_WIDTH: f32 = 800.;
@@ -20,12 +20,11 @@ struct Screen {
 }
 
 impl Screen {
-    fn steer(&mut self, direction: f32) {
-        self.direction += STEERING_SPEED * direction;
+    fn steer(&mut self, side: f32) {
+        self.direction += STEERING_SPEED * side;
         if self.direction > MAX_ANGLE {
             self.direction = MAX_ANGLE;
-        }
-        else if self.direction < -MAX_ANGLE {
+        } else if self.direction < -MAX_ANGLE {
             self.direction = -MAX_ANGLE;
         }
     }
@@ -51,42 +50,55 @@ impl State for Screen {
 
     fn draw(&mut self, window: &mut Window) -> Result<()> {
         window.clear(Color::WHITE)?;
-        window.draw_ex(&Rectangle::new((
-            SCREEN_WIDTH / 2. + self.ski_across_offset - SKI_WIDTH / 2.,
-            SCREEN_HEIGHT * 15. / 16. - SKI_LENGTH / 2.),
-            (SKI_WIDTH, SKI_LENGTH)),
+        window.draw_ex(
+            &Rectangle::new(
+                (
+                    SCREEN_WIDTH / 2. + self.ski_across_offset - SKI_WIDTH / 2.,
+                    SCREEN_HEIGHT * 15. / 16. - SKI_LENGTH / 2.,
+                ),
+                (SKI_WIDTH, SKI_LENGTH),
+            ),
             Background::Col(Color::PURPLE),
-            Transform::translate(Vector::new(0, - SKI_LENGTH / 2. - SKI_TIP_LEN)) *
-                Transform::rotate(self.direction) *
-                Transform::translate(Vector::new(0, SKI_LENGTH / 2. + SKI_TIP_LEN)),
-            0);
-            
-        window.draw_ex(&Triangle::new(
-            Vector::new(
-                SCREEN_WIDTH / 2. + self.ski_across_offset - SKI_WIDTH / 2.,
-                SCREEN_HEIGHT * 15. / 16. - SKI_LENGTH / 2.),
-            Vector::new(
-                SCREEN_WIDTH / 2. + self.ski_across_offset + SKI_WIDTH / 2.,
-                SCREEN_HEIGHT * 15. / 16. - SKI_LENGTH / 2.),
-            Vector::new(
-                SCREEN_WIDTH / 2. + self.ski_across_offset,
-                SCREEN_HEIGHT * 15. / 16. - SKI_LENGTH / 2. - SKI_TIP_LEN)),
+            Transform::translate(Vector::new(0, -SKI_LENGTH / 2. - SKI_TIP_LEN))
+                * Transform::rotate(self.direction)
+                * Transform::translate(Vector::new(0, SKI_LENGTH / 2. + SKI_TIP_LEN)),
+            0,
+        );
+
+        window.draw_ex(
+            &Triangle::new(
+                Vector::new(
+                    SCREEN_WIDTH / 2. + self.ski_across_offset - SKI_WIDTH / 2.,
+                    SCREEN_HEIGHT * 15. / 16. - SKI_LENGTH / 2.,
+                ),
+                Vector::new(
+                    SCREEN_WIDTH / 2. + self.ski_across_offset + SKI_WIDTH / 2.,
+                    SCREEN_HEIGHT * 15. / 16. - SKI_LENGTH / 2.,
+                ),
+                Vector::new(
+                    SCREEN_WIDTH / 2. + self.ski_across_offset,
+                    SCREEN_HEIGHT * 15. / 16. - SKI_LENGTH / 2. - SKI_TIP_LEN,
+                ),
+            ),
             Background::Col(Color::INDIGO),
-            Transform::translate(Vector::new(0, - SKI_TIP_LEN * 2. / 3.)) *
-                Transform::rotate(self.direction) *
-                Transform::translate(Vector::new(0, SKI_TIP_LEN * 2. / 3.)),
-            0);
+            Transform::translate(Vector::new(0, -SKI_TIP_LEN * 2. / 3.))
+                * Transform::rotate(self.direction)
+                * Transform::translate(Vector::new(0, SKI_TIP_LEN * 2. / 3.)),
+            0,
+        );
 
         Ok(())
     }
 }
 
 fn main() {
-    run::<Screen>("Ski",
-        Vector::new(SCREEN_WIDTH, SCREEN_HEIGHT), Settings {
+    run::<Screen>(
+        "Ski",
+        Vector::new(SCREEN_WIDTH, SCREEN_HEIGHT),
+        Settings {
             draw_rate: 40.,
             update_rate: 40.,
             ..Settings::default()
-        }
+        },
     );
 }
