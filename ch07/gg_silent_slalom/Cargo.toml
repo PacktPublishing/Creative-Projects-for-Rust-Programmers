@@ -1,0 +1,10 @@
+[package]
+name = "gg_silent_slalom"
+version = "0.1.0"
+authors = []
+edition = "2018"
+
+[dependencies]
+ggez = "0.5"
+rand = "0.6"
+nalgebra = "0.18"
