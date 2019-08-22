@@ -362,7 +362,7 @@ impl EventHandler for Screen {
     }
 }
 
-pub fn main() -> GameResult {
+fn main() -> GameResult {
     let (context, animation_loop) = &mut ContextBuilder::new("whac-a-mole", "ggez")
         .window_setup(conf::WindowSetup::default().title("Whac-a-Mole"))
         .window_mode(conf::WindowMode::default().dimensions(SCREEN_WIDTH, SCREEN_HEIGHT))

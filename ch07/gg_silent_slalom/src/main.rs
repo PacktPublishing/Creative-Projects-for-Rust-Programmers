@@ -7,22 +7,23 @@ use ggez::{
 };
 use rand::prelude::*;
 use std::f32::consts::PI;
+use std::time::Duration;
 
 type Point2 = nalgebra::Point2<f32>;
 
-const SCREEN_WIDTH: f32 = 800.;
-const SCREEN_HEIGHT: f32 = 600.;
-const SKI_WIDTH: f32 = 10.;
-const SKI_LENGTH: f32 = 50.;
-const SKI_TIP_LEN: f32 = 20.;
+const SCREEN_WIDTH: f32 = 800.; // in pixels
+const SCREEN_HEIGHT: f32 = 600.; // in pixels
+const SKI_WIDTH: f32 = 10.; // in pixels
+const SKI_LENGTH: f32 = 50.; // in pixels
+const SKI_TIP_LEN: f32 = 20.; // in pixels
 const N_GATES_IN_SCREEN: usize = 3;
-const GATE_POLE_RADIUS: f32 = 4.;
-const GATE_WIDTH: f32 = 150.;
-const STEERING_SPEED: f32 = 3.5 / 180.0 * PI;
-const MAX_ANGLE: f32 = 75. / 180.0 * PI;
-const SKI_MARGIN: f32 = 12.;
-const ALONG_ACCELERATION: f32 = 0.06;
-const DRAG_FACTOR: f32 = 0.02;
+const GATE_POLE_RADIUS: f32 = 4.; // in pixels
+const GATE_WIDTH: f32 = 150.; // in pixels
+const STEERING_SPEED: f32 = 110. / 180. * PI; // in radians/second
+const MAX_ANGLE: f32 = 75. / 180. * PI; // in radians
+const SKI_MARGIN: f32 = 12.; // in pixels
+const ALONG_ACCELERATION: f32 = 20.; // in pixels/second/second
+const DRAG_FACTOR: f32 = 0.88; // in fraction-of-speed/second
 const TOTAL_N_GATES: usize = 8;
 
 #[derive(Debug)]
@@ -41,10 +42,12 @@ struct InputState {
 
 struct Screen {
     gates: Vec<(f32, f32)>,
-    ski_across_offset: f32,
-    direction: f32,
-    forward_speed: f32,
-    gates_along_offset: f32,
+    ski_across_offset: f32,  // in pixels
+    direction: f32,          // in radians
+    forward_speed: f32,      // in pixels per second
+    gates_along_offset: f32, // in pixels
+    previous_frame_time: Duration,
+    period_in_sec: f32, // in seconds
     mode: Mode,
     entered_gate: bool,
     disappeared_gates: usize,
@@ -63,6 +66,8 @@ impl Screen {
             direction: 0.,
             forward_speed: 0.,
             gates_along_offset: 0.,
+            previous_frame_time: Duration::from_secs(0),
+            period_in_sec: 0.,
             mode: Mode::Ready,
             entered_gate: false,
             disappeared_gates: 0,
@@ -88,7 +93,7 @@ impl Screen {
         if side == 0. {
             return;
         }
-        self.direction += STEERING_SPEED * side;
+        self.direction += STEERING_SPEED * self.period_in_sec * side;
         if self.direction > MAX_ANGLE {
             self.direction = MAX_ANGLE;
         } else if self.direction < -MAX_ANGLE {
@@ -102,6 +107,9 @@ impl EventHandler for Screen {
         const DESIRED_FPS: u32 = 25;
 
         while timer::check_update_time(ctx, DESIRED_FPS) {
+            let now = timer::time_since_start(ctx);
+            self.period_in_sec = (now - self.previous_frame_time).as_millis() as f32 / 1000.;
+            self.previous_frame_time = now;
             self.steer(self.input.to_turn);
             match self.mode {
                 Mode::Ready => {
@@ -110,17 +118,19 @@ impl EventHandler for Screen {
                     }
                 }
                 Mode::Running => {
-                    self.forward_speed += ALONG_ACCELERATION * self.direction.cos()
-                        - DRAG_FACTOR * self.forward_speed;
+                    self.forward_speed = (self.forward_speed
+                        + ALONG_ACCELERATION * self.period_in_sec * self.direction.cos())
+                        * DRAG_FACTOR.powf(self.period_in_sec);
                     let along_speed = self.forward_speed * self.direction.cos();
-                    self.ski_across_offset += self.forward_speed * self.direction.sin();
+                    self.ski_across_offset +=
+                        self.forward_speed * self.period_in_sec * self.direction.sin();
                     if self.ski_across_offset < -SCREEN_WIDTH / 2. + SKI_MARGIN {
                         self.ski_across_offset = -SCREEN_WIDTH / 2. + SKI_MARGIN;
                     }
                     if self.ski_across_offset > SCREEN_WIDTH / 2. - SKI_MARGIN {
                         self.ski_across_offset = SCREEN_WIDTH / 2. - SKI_MARGIN;
                     }
-                    self.gates_along_offset += along_speed;
+                    self.gates_along_offset += along_speed * self.period_in_sec;
                     let max_gates_along_offset = SCREEN_HEIGHT / N_GATES_IN_SCREEN as f32;
                     if self.gates_along_offset > max_gates_along_offset {
                         self.gates_along_offset -= max_gates_along_offset;
@@ -174,7 +184,7 @@ impl EventHandler for Screen {
             ctx,
             DrawMode::fill(),
             Point2::new(0., 0.),
-            5.0,
+            GATE_POLE_RADIUS,
             0.05,
             [0., 0., 1., 1.].into(),
         )?;
@@ -182,7 +192,7 @@ impl EventHandler for Screen {
             ctx,
             DrawMode::fill(),
             Point2::new(0., 0.),
-            5.0,
+            GATE_POLE_RADIUS,
             0.05,
             [0., 1., 0., 1.].into(),
         )?;
@@ -283,7 +293,7 @@ impl EventHandler for Screen {
     }
 }
 
-pub fn main() -> GameResult {
+fn main() -> GameResult {
     let (context, animation_loop) = &mut ContextBuilder::new("slalom", "ggez")
         .window_setup(conf::WindowSetup::default().title("Slalom"))
         .window_mode(conf::WindowMode::default().dimensions(SCREEN_WIDTH, SCREEN_HEIGHT))

@@ -6,16 +6,17 @@ use ggez::{
     timer, Context, ContextBuilder, GameResult,
 };
 use std::f32::consts::PI;
+use std::time::Duration;
 
 type Point2 = nalgebra::Point2<f32>;
 
-const SCREEN_WIDTH: f32 = 800.;
-const SCREEN_HEIGHT: f32 = 600.;
-const SKI_WIDTH: f32 = 10.;
-const SKI_LENGTH: f32 = 50.;
-const SKI_TIP_LEN: f32 = 20.;
-const STEERING_SPEED: f32 = 3.5 / 180.0 * PI;
-const MAX_ANGLE: f32 = 75. / 180.0 * PI;
+const SCREEN_WIDTH: f32 = 800.; // in pixels
+const SCREEN_HEIGHT: f32 = 600.; // in pixels
+const SKI_WIDTH: f32 = 10.; // in pixels
+const SKI_LENGTH: f32 = 50.; // in pixels
+const SKI_TIP_LEN: f32 = 20.; // in pixels
+const STEERING_SPEED: f32 = 110. / 180. * PI; // in radians/second
+const MAX_ANGLE: f32 = 75. / 180. * PI; // in radians
 
 #[derive(Debug)]
 struct InputState {
@@ -24,8 +25,10 @@ struct InputState {
 }
 
 struct Screen {
-    ski_across_offset: f32,
-    direction: f32,
+    ski_across_offset: f32, // in pixels
+    direction: f32,         // in radians
+    previous_frame_time: Duration,
+    period_in_sec: f32, // in seconds
     input: InputState,
 }
 
@@ -34,6 +37,8 @@ impl Screen {
         let s = Screen {
             ski_across_offset: 0.,
             direction: 0.,
+            previous_frame_time: Duration::from_secs(0),
+            period_in_sec: 0.,
             input: InputState {
                 to_turn: 0.0,
                 started: false,
@@ -46,7 +51,7 @@ impl Screen {
         if side == 0. {
             return;
         }
-        self.direction += STEERING_SPEED * side;
+        self.direction += STEERING_SPEED * self.period_in_sec * side;
         if self.direction > MAX_ANGLE {
             self.direction = MAX_ANGLE;
         } else if self.direction < -MAX_ANGLE {
@@ -58,7 +63,11 @@ impl Screen {
 impl EventHandler for Screen {
     fn update(&mut self, ctx: &mut Context) -> GameResult {
         const DESIRED_FPS: u32 = 25;
+
         while timer::check_update_time(ctx, DESIRED_FPS) {
+            let now = timer::time_since_start(ctx);
+            self.period_in_sec = (now - self.previous_frame_time).as_millis() as f32 / 1000.;
+            self.previous_frame_time = now;
             self.steer(self.input.to_turn);
         }
         Ok(())
@@ -133,7 +142,7 @@ impl EventHandler for Screen {
     }
 }
 
-pub fn main() -> GameResult {
+fn main() -> GameResult {
     let (context, animation_loop) = &mut ContextBuilder::new("slalom", "ggez")
         .window_setup(conf::WindowSetup::default().title("Slalom"))
         .window_mode(conf::WindowMode::default().dimensions(SCREEN_WIDTH, SCREEN_HEIGHT))
