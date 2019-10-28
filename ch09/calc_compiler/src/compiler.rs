@@ -1,11 +1,13 @@
-use crate::parser::{TermOperator, ExprOperator};
+use crate::analyzer::{
+    AnalyzedExpr, AnalyzedFactor, AnalyzedProgram, AnalyzedStatement, AnalyzedTerm,
+};
+use crate::parser::{ExprOperator, TermOperator};
 use crate::symbol_table::SymbolTable;
-use crate::analyzer::{AnalyzedFactor, AnalyzedTerm, AnalyzedExpr, AnalyzedStatement, AnalyzedProgram};
 
 fn translate_to_rust_factor(variables: &SymbolTable, analyzed_factor: &AnalyzedFactor) -> String {
     match analyzed_factor {
         AnalyzedFactor::Literal(value) => value.to_string() + "f64",
-        AnalyzedFactor::Identifier(handle) => variables.get_name(*handle),
+        AnalyzedFactor::Identifier(handle) => "_".to_string() + &variables.get_name(*handle),
         AnalyzedFactor::SubExpression(expr) => {
             "(".to_string() + &translate_to_rust_expr(variables, expr) + ")"
         }
@@ -52,15 +54,15 @@ fn translate_to_rust_statement(
 ) -> String {
     match analyzed_statement {
         AnalyzedStatement::Assignment(handle, expr) => format!(
-            "{} = {}",
+            "_{} = {}",
             variables.get_name(*handle),
             translate_to_rust_expr(&variables, expr)
         ),
         AnalyzedStatement::Declaration(handle) => {
-            format!("let {}: f64", variables.get_name(*handle))
+            format!("let mut _{} = 0.0", variables.get_name(*handle))
         }
         AnalyzedStatement::InputOperation(handle) => {
-            format!("{} = input()", variables.get_name(*handle))
+            format!("_{} = input()", variables.get_name(*handle))
         }
         AnalyzedStatement::OutputOperation(expr) => format!(
             "println!(\"{}\", {})",
@@ -77,6 +79,7 @@ pub fn translate_to_rust_program(
     let mut rust_program = String::new();
     rust_program += "use std::io::Write;\n";
     rust_program += "\n";
+    rust_program += "#[allow(dead_code)]\n";
     rust_program += "fn input() -> f64 {\n";
     rust_program += "    let mut text = String::new();\n";
     rust_program += "    eprint!(\"? \");\n";

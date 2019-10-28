@@ -4,14 +4,17 @@ mod parser;
 mod symbol_table;
 
 fn main() {
-    read_eval_print_loop();
+    run_interpreter();
 }
 
-fn read_eval_print_loop() {
+fn run_interpreter() {
     eprintln!("* Calc interactive interpreter *");
     let mut variables = symbol_table::SymbolTable::new();
     loop {
         let command = input_command();
+        if command.len() == 0 {
+            break;
+        }
         match command.trim() {
             "q" => break,
             "c" => {
@@ -45,9 +48,7 @@ fn read_eval_print_loop() {
 
 fn input_command() -> String {
     let mut text = String::new();
-    use std::io::Write;
     eprint!("> ");
-    std::io::stdout().flush().unwrap();
     std::io::stdin()
         .read_line(&mut text)
         .expect("Cannot read line.");

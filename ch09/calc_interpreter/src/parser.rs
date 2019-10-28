@@ -56,22 +56,22 @@ pub fn parse_program(input: &str) -> IResult<&str, ParsedProgram> {
     ))(input)
 }
 
-pub fn parse_declaration(input: &str) -> IResult<&str, ParsedStatement> {
+fn parse_declaration(input: &str) -> IResult<&str, ParsedStatement> {
     tuple((char('@'), skip_spaces, parse_identifier))(input)
         .map(|(input, output)| (input, ParsedStatement::Declaration(output.2)))
 }
 
-pub fn parse_input_statement(input: &str) -> IResult<&str, ParsedStatement> {
+fn parse_input_statement(input: &str) -> IResult<&str, ParsedStatement> {
     tuple((char('>'), skip_spaces, parse_identifier))(input)
         .map(|(input, output)| (input, ParsedStatement::InputOperation(output.2)))
 }
 
-pub fn parse_output_statement(input: &str) -> IResult<&str, ParsedStatement> {
+fn parse_output_statement(input: &str) -> IResult<&str, ParsedStatement> {
     tuple((char('<'), skip_spaces, parse_expr))(input)
         .map(|(input, output)| (input, ParsedStatement::OutputOperation(output.2)))
 }
 
-pub fn parse_assignment(input: &str) -> IResult<&str, ParsedStatement> {
+fn parse_assignment(input: &str) -> IResult<&str, ParsedStatement> {
     tuple((
         parse_identifier,
         skip_spaces,
@@ -123,7 +123,7 @@ fn parse_term(input: &str) -> IResult<&str, ParsedTerm> {
     ))(input)
 }
 
-pub fn parse_expr(input: &str) -> IResult<&str, ParsedExpr> {
+fn parse_expr(input: &str) -> IResult<&str, ParsedExpr> {
     tuple((
         parse_term,
         many0(tuple((

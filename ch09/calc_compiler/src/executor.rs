@@ -34,19 +34,15 @@ fn evaluate_expr(variables: &SymbolTable, expr: &AnalyzedExpr) -> f64 {
     result
 }
 
-pub fn execute_statement(variables: &mut SymbolTable, statement: &AnalyzedStatement) {
+fn execute_statement(variables: &mut SymbolTable, statement: &AnalyzedStatement) {
     match statement {
         AnalyzedStatement::Assignment(handle, expr) => {
             variables.set_value(*handle, evaluate_expr(variables, expr));
         }
-        AnalyzedStatement::Declaration(handle) => {
-            variables.set_value(*handle, 0.);
-        }
+        AnalyzedStatement::Declaration(_) => {}
         AnalyzedStatement::InputOperation(handle) => {
             let mut text = String::new();
-            use std::io::Write;
             eprint!("? ");
-            std::io::stdout().flush().unwrap();
             std::io::stdin()
                 .read_line(&mut text)
                 .expect("Cannot read line.");
@@ -59,8 +55,8 @@ pub fn execute_statement(variables: &mut SymbolTable, statement: &AnalyzedStatem
     }
 }
 
-pub fn execute_program(mut variables: &mut SymbolTable, program: &AnalyzedProgram) {
+pub fn execute_program(variables: &mut SymbolTable, program: &AnalyzedProgram) {
     for statement in program {
-        execute_statement(&mut variables, statement);
+        execute_statement(variables, statement);
     }
 }

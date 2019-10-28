@@ -9,7 +9,7 @@ fn main() {
     let current_program_path = args.next().unwrap();
     let source_path = args.next();
     if source_path.is_none() {
-        read_eval_print_loop();
+        run_interpreter();
     } else {
         process_file(&current_program_path, &source_path.unwrap());
     }
@@ -76,11 +76,14 @@ fn process_file(current_program_path: &str, source_path: &str) {
     }
 }
 
-fn read_eval_print_loop() {
+fn run_interpreter() {
     eprintln!("* Calc interactive interpreter *");
     let mut variables = symbol_table::SymbolTable::new();
     loop {
         let command = input_command();
+        if command.len() == 0 {
+            break;
+        }
         match command.trim() {
             "q" => break,
             "c" => {
@@ -114,9 +117,7 @@ fn read_eval_print_loop() {
 
 fn input_command() -> String {
     let mut text = String::new();
-    use std::io::Write;
     eprint!("> ");
-    std::io::stdout().flush().unwrap();
     std::io::stdin()
         .read_line(&mut text)
         .expect("Cannot read line.");
