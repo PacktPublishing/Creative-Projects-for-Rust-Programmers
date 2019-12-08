@@ -5,7 +5,7 @@ authors = []
 edition = "2018"
 
 [dependencies]
-tera = "1.0.0-beta"
+tera = "1"
 serde = "1"
 serde_derive = "1"
 lazy_static = "1.2"

@@ -7,6 +7,6 @@ edition = "2018"
 [dependencies]
 actix-web = "1"
 lazy_static = "1.2"
-tera = "1.0.0-beta"
+tera = "1"
 serde = "1"
 serde_derive = "1"

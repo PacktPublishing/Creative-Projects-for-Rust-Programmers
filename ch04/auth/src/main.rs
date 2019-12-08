@@ -40,7 +40,7 @@ fn get_main() -> impl Responder {
     let context = tera::Context::new();
     HttpResponse::Ok()
         .content_type("text/html")
-        .body(TERA.render("main.html", context).unwrap())
+        .body(TERA.render("main.html", &context).unwrap())
 }
 
 #[derive(Deserialize)]
@@ -65,7 +65,7 @@ fn get_page_persons(
             context.insert("persons", &person_list.collect::<Vec<_>>());
             HttpResponse::Ok()
                 .content_type("text/html")
-                .body(TERA.render("persons.html", context).unwrap())
+                .body(TERA.render("persons.html", &context).unwrap())
         }
         Err(msg) => get_page_login_with_message(&msg),
     }
@@ -115,7 +115,7 @@ fn get_page_new_person(auth: BasicAuth, state: web::Data<Mutex<AppState>>) -> Ht
             context.insert("inserting", &true);
             HttpResponse::Ok()
                 .content_type("text/html")
-                .body(TERA.render("one_person.html", context).unwrap())
+                .body(TERA.render("one_person.html", &context).unwrap())
         }
         Err(msg) => get_page_login_with_message(&msg),
     }
@@ -139,7 +139,7 @@ fn get_page_edit_person(
                     context.insert("inserting", &false);
                     return HttpResponse::Ok()
                         .content_type("text/html")
-                        .body(TERA.render("one_person.html", context).unwrap());
+                        .body(TERA.render("one_person.html", &context).unwrap());
                 }
             }
             let person_list = db_conn.get_persons_by_partial_name(&"");
@@ -149,7 +149,7 @@ fn get_page_edit_person(
             context.insert("persons", &person_list.collect::<Vec<_>>());
             HttpResponse::Ok()
                 .content_type("text/html")
-                .body(TERA.render("persons.html", context).unwrap())
+                .body(TERA.render("persons.html", &context).unwrap())
         }
         Err(msg) => get_page_login_with_message(&msg),
     }
@@ -227,7 +227,7 @@ fn invalid_resource() -> impl Responder {
     context.insert("persons", &Vec::<Person>::new());
     HttpResponse::Ok()
         .content_type("text/html")
-        .body(TERA.render("persons.html", context).unwrap())
+        .body(TERA.render("persons.html", &context).unwrap())
 }
 
 lazy_static! {
@@ -243,7 +243,7 @@ fn get_page_login_with_message(error_message: &str) -> HttpResponse {
     context.insert("error_message", error_message);
     HttpResponse::Ok()
         .content_type("text/html")
-        .body(TERA.render("login.html", context).unwrap())
+        .body(TERA.render("login.html", &context).unwrap())
 }
 
 fn main() -> std::io::Result<()> {

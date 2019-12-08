@@ -10,7 +10,7 @@ fn main() {
     println!(
         "id_template with numeric_id: [{}]",
         tera_engine
-            .render("id_template", numeric_id.clone())
+            .render("id_template", &numeric_id.clone())
             .unwrap()
     );
 
@@ -18,7 +18,7 @@ fn main() {
     textual_id.insert("id", &"ABCD");
     println!(
         "id_template with textual_id: [{}]",
-        tera_engine.render("id_template", textual_id).unwrap()
+        tera_engine.render("id_template", &textual_id).unwrap()
     );
 
     tera_engine
@@ -42,7 +42,7 @@ fn main() {
     println!(
         "person_id_template with one_person: [{}]",
         tera_engine
-            .render("person_id_template", one_person.clone())
+            .render("person_id_template", &one_person.clone())
             .unwrap()
     );
 
@@ -58,14 +58,14 @@ fn main() {
     println!(
         "possible_person_id_template with one_person: [{}]",
         tera_engine
-            .render("possible_person_id_template", one_person)
+            .render("possible_person_id_template", &one_person)
             .unwrap()
     );
 
     println!(
         "possible_person_id_template with empty context: [{}]",
         tera_engine
-            .render("possible_person_id_template", tera::Context::new())
+            .render("possible_person_id_template", &tera::Context::new())
             .unwrap()
     );
 
@@ -99,7 +99,7 @@ fn main() {
     println!(
         "multiple_person_id_template with three_persons: [{}]",
         tera_engine
-            .render("multiple_person_id_template", three_persons.clone())
+            .render("multiple_person_id_template", &three_persons.clone())
             .unwrap()
     );
 
@@ -110,7 +110,7 @@ fn main() {
     println!(
         "id_file_template with numeric_id: [{}]",
         tera_engine
-            .render("id_file_template", numeric_id.clone())
+            .render("id_file_template", &numeric_id.clone())
             .unwrap()
     );
 
@@ -121,13 +121,13 @@ fn main() {
     println!(
         "templates/templ_id.txt with numeric_id: [{}]",
         tera_engine
-            .render("templates/templ_id.txt", numeric_id)
+            .render("templates/templ_id.txt", &numeric_id)
             .unwrap()
     );
 
     println!(
         "templates/templ_names.txt with numeric_id: [{}]",
-        TERA.render("templ_names.txt", three_persons).unwrap()
+        TERA.render("templ_names.txt", &three_persons).unwrap()
     );
 }
 
