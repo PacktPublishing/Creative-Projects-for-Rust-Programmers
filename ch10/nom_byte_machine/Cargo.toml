@@ -1,0 +1,8 @@
+[package]
+name = "nom_byte_machine"
+version = "0.1.0"
+authors = []
+edition = "2018"
+
+[dependencies]
+nom = "5"
