@@ -5,236 +5,85 @@ use nom::combinator::map;
 use nom::number::complete::le_u16;
 use nom::number::complete::le_u8;
 use nom::sequence::preceded;
-use nom::Err;
 use nom::IResult;
 
-fn input_line(buffer: &mut [u8]) {
-    let mut text = String::new();
-    std::io::stdin()
-        .read_line(&mut text)
-        .expect("Cannot read line.");
-    for i in 0..text.len().min(buffer.len()) {
-        buffer[i] = text.as_bytes()[i].into();
-    }
-    for i in text.len()..buffer.len() {
-        buffer[i] = 0;
-    }
+#[derive(Copy, Clone)]
+struct Word(u16);
+
+fn le_word(input: &[u8]) -> IResult<&[u8], Word> {
+    le_u16(input).map(|(input, output)| (input, Word(output)))
 }
 
-struct RegisterSet {
-    ip: u16,
-    acc: u16,
-}
-
-fn get_le_word(slice: &[u8], address: u16) -> u16 {
-    slice[address as usize] as u16 + slice[address as usize + 1] as u16 * 256
-}
-
-fn set_le_word(slice: &mut [u8], address: u16, value: u16) {
-    slice[address as usize] = (value % 256) as u8;
-    slice[address as usize + 1] = (value / 256) as u8;
-}
-
-fn get_byte(slice: &[u8], address: u16) -> u16 {
-    slice[address as usize] as u16
-}
-
-fn set_byte(slice: &mut [u8], address: u16, value: u16) {
-    slice[address as usize] = (value % 256) as u8;
-}
-
-fn execute_instruction(
-    process: &mut [u8],
-    r: &mut RegisterSet,
-    instruction: Instruction,
-) -> Option<u8> {
-    use Instruction::*;
-    match instruction {
-        Terminate(operand) => {
-            r.ip += 2;
-            return Some(operand);
-        }
-        Set(operand) => {
-            r.acc = operand;
-            r.ip += 3;
-        }
-        Load(address) => {
-            r.acc = get_le_word(process, address);
-            r.ip += 3;
-        }
-        Store(address) => {
-            set_le_word(process, address, r.acc);
-            r.ip += 3;
-        }
-        IndirectLoad(address) => {
-            r.acc = get_le_word(process, get_le_word(process, address));
-            r.ip += 3;
-        }
-        IndirectStore(address) => {
-            set_le_word(process, get_le_word(process, address), r.acc);
-            r.ip += 3;
-        }
-        Input(length) => {
-            let address = r.acc as usize;
-            input_line(&mut process[address..address + length as usize]);
-            r.ip += 2;
-        }
-        Output(length) => {
-            let address = r.acc as usize;
-            for &byte in &process[address..address + length as usize] {
-                print!("{}", if byte == 0 { ' ' } else { byte as char });
-            }
-            r.ip += 2;
-        }
-        Add(address) => {
-            r.acc = r.acc.wrapping_add(get_le_word(process, address));
-            r.ip += 3;
-        }
-        Subtract(address) => {
-            r.acc = r.acc.wrapping_sub(get_le_word(process, address));
-            r.ip += 3;
-        }
-        Multiply(address) => {
-            r.acc = r.acc.wrapping_mul(get_le_word(process, address));
-            r.ip += 3;
-        }
-        Divide(address) => {
-            r.acc = r.acc.wrapping_div(get_le_word(process, address));
-            r.ip += 3;
-        }
-        Remainder(address) => {
-            r.acc = r.acc.wrapping_rem(get_le_word(process, address));
-            r.ip += 3;
-        }
-        Jump(address) => {
-            r.ip = address;
-        }
-        JumpIfZero(address) => {
-            if r.acc == 0 {
-                r.ip = address;
-            } else {
-                r.ip += 3;
-            }
-        }
-        JumpIfNonZero(address) => {
-            if r.acc != 0 {
-                r.ip = address;
-            } else {
-                r.ip += 3;
-            }
-        }
-        JumpIfPositive(address) => {
-            if (r.acc as i16) > 0 {
-                r.ip = address;
-            } else {
-                r.ip += 3;
-            }
-        }
-        JumpIfNegative(address) => {
-            if (r.acc as i16) < 0 {
-                r.ip = address;
-            } else {
-                r.ip += 3;
-            }
-        }
-        JumpIfNonPositive(address) => {
-            if r.acc as i16 <= 0 {
-                r.ip = address;
-            } else {
-                r.ip += 3;
-            }
-        }
-        JumpIfNonNegative(address) => {
-            if r.acc as i16 >= 0 {
-                r.ip = address;
-            } else {
-                r.ip += 3;
-            }
-        }
-        LoadByte(address) => {
-            r.acc = get_byte(process, address);
-            r.ip += 3;
-        }
-        StoreByte(address) => {
-            set_byte(process, address, r.acc);
-            r.ip += 3;
-        }
-        IndirectLoadByte(address) => {
-            r.acc = get_byte(process, get_le_word(process, address));
-            r.ip += 3;
-        }
-        IndirectStoreByte(address) => {
-            set_byte(process, get_le_word(process, address), r.acc);
-            r.ip += 3;
-        }
-    }
-    return None;
-}
-
-fn execute_program(program: &[u8]) -> Result<u8, ()> {
-    fn get_process_size(program: &[u8]) -> Result<u16, ()> {
-        match le_u16(program) {
-            Ok(ok) => Ok(ok.1),
-            Err(Err::Incomplete(_)) => Err(()),
-            Err(Err::Error((_, _))) => Err(()),
-            Err(Err::Failure((_, _))) => Err(()),
-        }
-    }
-    let process_size_parsed: u16 = match get_process_size(program) {
-        Ok(ok) => ok,
-        Err(_) => return Err(()),
-    };
-
-    let mut process = vec![0u8; process_size_parsed as usize];
-    process[0..program.len()].copy_from_slice(&program);
-
-    let mut registers = RegisterSet { ip: 2, acc: 0 };
-    loop {
-        let instruction = match parse_instruction(&process[registers.ip as usize..]) {
-            Ok(instruction) => instruction.1,
-            Err(_) => return Err(()),
-        };
-        /*
-        println!(
-            "Ip: {} Acc: {} Instr: {:?}",
-            registers.ip, registers.acc, instruction
-        );
-        */
-        match execute_instruction(&mut process, &mut registers, instruction) {
-            Some(return_code) => {
-                return Ok(return_code);
-            }
-            _ => {}
-        };
+impl std::fmt::Display for Word {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.0)
     }
 }
 
-#[derive(Debug)]
+impl std::fmt::Debug for Word {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}: {}, {}", self.0, self.0 % 256, self.0 / 256)
+    }
+}
+
+impl std::fmt::Display for Instruction {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        use Instruction::*;
+        match self {
+            Terminate(byte) => write!(f, "terminate {}", byte),
+            Set(word) => write!(f, "set {}", word),
+            Load(word) => write!(f, "load {}", word),
+            Store(word) => write!(f, "store {}", word),
+            IndirectLoad(word) => write!(f, "indirect load {}", word),
+            IndirectStore(word) => write!(f, "indirect store {}", word),
+            Input(byte) => write!(f, "input {}", byte),
+            Output(byte) => write!(f, "output {}", byte),
+            Add(word) => write!(f, "add {}", word),
+            Subtract(word) => write!(f, "subtract {}", word),
+            Multiply(word) => write!(f, "multiply {}", word),
+            Divide(word) => write!(f, "divide {}", word),
+            Remainder(word) => write!(f, "remainder {}", word),
+            Jump(word) => write!(f, "jump {}", word),
+            JumpIfZero(word) => write!(f, "jump if zero {}", word),
+            JumpIfNonZero(word) => write!(f, "jump if non-zero {}", word),
+            JumpIfPositive(word) => write!(f, "jump if positive {}", word),
+            JumpIfNegative(word) => write!(f, "jump if negative {}", word),
+            JumpIfNonPositive(word) => write!(f, "jump if non-positive {}", word),
+            JumpIfNonNegative(word) => write!(f, "jump if non-negative {}", word),
+            LoadByte(word) => write!(f, "load byte {}", word),
+            StoreByte(word) => write!(f, "store byte {}", word),
+            IndirectLoadByte(word) => write!(f, "indirect load byte {}", word),
+            IndirectStoreByte(word) => write!(f, "indirect store byte {}", word),
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
 enum Instruction {
     Terminate(u8),
-    Set(u16),
-    Load(u16),
-    Store(u16),
-    IndirectLoad(u16),
-    IndirectStore(u16),
+    Set(Word),
+    Load(Word),
+    Store(Word),
+    IndirectLoad(Word),
+    IndirectStore(Word),
     Input(u8),
     Output(u8),
-    Add(u16),
-    Subtract(u16),
-    Multiply(u16),
-    Divide(u16),
-    Remainder(u16),
-    Jump(u16),
-    JumpIfZero(u16),
-    JumpIfNonZero(u16),
-    JumpIfPositive(u16),
-    JumpIfNegative(u16),
-    JumpIfNonPositive(u16),
-    JumpIfNonNegative(u16),
-    LoadByte(u16),
-    StoreByte(u16),
-    IndirectLoadByte(u16),
-    IndirectStoreByte(u16),
+    Add(Word),
+    Subtract(Word),
+    Multiply(Word),
+    Divide(Word),
+    Remainder(Word),
+    Jump(Word),
+    JumpIfZero(Word),
+    JumpIfNonZero(Word),
+    JumpIfPositive(Word),
+    JumpIfNegative(Word),
+    JumpIfNonPositive(Word),
+    JumpIfNonNegative(Word),
+    LoadByte(Word),
+    StoreByte(Word),
+    IndirectLoadByte(Word),
+    IndirectStoreByte(Word),
 }
 
 fn parse_terminate(input: &[u8]) -> IResult<&[u8], Instruction> {
@@ -242,23 +91,23 @@ fn parse_terminate(input: &[u8]) -> IResult<&[u8], Instruction> {
 }
 
 fn parse_set(input: &[u8]) -> IResult<&[u8], Instruction> {
-    preceded(tag("\x01"), map(le_u16, Instruction::Set))(input)
+    preceded(tag("\x01"), map(le_word, Instruction::Set))(input)
 }
 
 fn parse_load(input: &[u8]) -> IResult<&[u8], Instruction> {
-    preceded(tag("\x02"), map(le_u16, Instruction::Load))(input)
+    preceded(tag("\x02"), map(le_word, Instruction::Load))(input)
 }
 
 fn parse_store(input: &[u8]) -> IResult<&[u8], Instruction> {
-    preceded(tag("\x03"), map(le_u16, Instruction::Store))(input)
+    preceded(tag("\x03"), map(le_word, Instruction::Store))(input)
 }
 
 fn parse_indirect_load(input: &[u8]) -> IResult<&[u8], Instruction> {
-    preceded(tag("\x04"), map(le_u16, Instruction::IndirectLoad))(input)
+    preceded(tag("\x04"), map(le_word, Instruction::IndirectLoad))(input)
 }
 
 fn parse_indirect_store(input: &[u8]) -> IResult<&[u8], Instruction> {
-    preceded(tag("\x05"), map(le_u16, Instruction::IndirectStore))(input)
+    preceded(tag("\x05"), map(le_word, Instruction::IndirectStore))(input)
 }
 
 fn parse_input(input: &[u8]) -> IResult<&[u8], Instruction> {
@@ -270,67 +119,67 @@ fn parse_output(input: &[u8]) -> IResult<&[u8], Instruction> {
 }
 
 fn parse_add(input: &[u8]) -> IResult<&[u8], Instruction> {
-    preceded(tag("\x08"), map(le_u16, Instruction::Add))(input)
+    preceded(tag("\x08"), map(le_word, Instruction::Add))(input)
 }
 
 fn parse_subtract(input: &[u8]) -> IResult<&[u8], Instruction> {
-    preceded(tag("\x09"), map(le_u16, Instruction::Subtract))(input)
+    preceded(tag("\x09"), map(le_word, Instruction::Subtract))(input)
 }
 
 fn parse_multiply(input: &[u8]) -> IResult<&[u8], Instruction> {
-    preceded(tag("\x0A"), map(le_u16, Instruction::Multiply))(input)
+    preceded(tag("\x0A"), map(le_word, Instruction::Multiply))(input)
 }
 
 fn parse_divide(input: &[u8]) -> IResult<&[u8], Instruction> {
-    preceded(tag("\x0B"), map(le_u16, Instruction::Divide))(input)
+    preceded(tag("\x0B"), map(le_word, Instruction::Divide))(input)
 }
 
 fn parse_remainder(input: &[u8]) -> IResult<&[u8], Instruction> {
-    preceded(tag("\x0C"), map(le_u16, Instruction::Remainder))(input)
+    preceded(tag("\x0C"), map(le_word, Instruction::Remainder))(input)
 }
 
 fn parse_jump(input: &[u8]) -> IResult<&[u8], Instruction> {
-    preceded(tag("\x0D"), map(le_u16, Instruction::Jump))(input)
+    preceded(tag("\x0D"), map(le_word, Instruction::Jump))(input)
 }
 
 fn parse_jump_if_zero(input: &[u8]) -> IResult<&[u8], Instruction> {
-    preceded(tag("\x0E"), map(le_u16, Instruction::JumpIfZero))(input)
+    preceded(tag("\x0E"), map(le_word, Instruction::JumpIfZero))(input)
 }
 
 fn parse_jump_if_nonzero(input: &[u8]) -> IResult<&[u8], Instruction> {
-    preceded(tag("\x0F"), map(le_u16, Instruction::JumpIfNonZero))(input)
+    preceded(tag("\x0F"), map(le_word, Instruction::JumpIfNonZero))(input)
 }
 
 fn parse_jump_if_positive(input: &[u8]) -> IResult<&[u8], Instruction> {
-    preceded(tag("\x10"), map(le_u16, Instruction::JumpIfPositive))(input)
+    preceded(tag("\x10"), map(le_word, Instruction::JumpIfPositive))(input)
 }
 
 fn parse_jump_if_negative(input: &[u8]) -> IResult<&[u8], Instruction> {
-    preceded(tag("\x11"), map(le_u16, Instruction::JumpIfNegative))(input)
+    preceded(tag("\x11"), map(le_word, Instruction::JumpIfNegative))(input)
 }
 
 fn parse_jump_if_nonpositive(input: &[u8]) -> IResult<&[u8], Instruction> {
-    preceded(tag("\x12"), map(le_u16, Instruction::JumpIfNonPositive))(input)
+    preceded(tag("\x12"), map(le_word, Instruction::JumpIfNonPositive))(input)
 }
 
 fn parse_jump_if_nonnegative(input: &[u8]) -> IResult<&[u8], Instruction> {
-    preceded(tag("\x13"), map(le_u16, Instruction::JumpIfNonNegative))(input)
+    preceded(tag("\x13"), map(le_word, Instruction::JumpIfNonNegative))(input)
 }
 
 fn parse_load_byte(input: &[u8]) -> IResult<&[u8], Instruction> {
-    preceded(tag("\x14"), map(le_u16, Instruction::LoadByte))(input)
+    preceded(tag("\x14"), map(le_word, Instruction::LoadByte))(input)
 }
 
 fn parse_store_byte(input: &[u8]) -> IResult<&[u8], Instruction> {
-    preceded(tag("\x15"), map(le_u16, Instruction::StoreByte))(input)
+    preceded(tag("\x15"), map(le_word, Instruction::StoreByte))(input)
 }
 
 fn parse_indirect_load_byte(input: &[u8]) -> IResult<&[u8], Instruction> {
-    preceded(tag("\x16"), map(le_u16, Instruction::IndirectLoadByte))(input)
+    preceded(tag("\x16"), map(le_word, Instruction::IndirectLoadByte))(input)
 }
 
 fn parse_indirect_store_byte(input: &[u8]) -> IResult<&[u8], Instruction> {
-    preceded(tag("\x17"), map(le_u16, Instruction::IndirectStoreByte))(input)
+    preceded(tag("\x17"), map(le_word, Instruction::IndirectStoreByte))(input)
 }
 
 fn parse_instruction(input: &[u8]) -> IResult<&[u8], Instruction> {
@@ -364,6 +213,39 @@ fn parse_instruction(input: &[u8]) -> IResult<&[u8], Instruction> {
             parse_indirect_store_byte,
         )),
     ))(input)
+}
+
+fn disassembly_program_for_debug(program: &[u8]) -> IResult<&[u8], ()> {
+    println!("Program size: {}", program.len());
+    let parsed_process_size = le_u16(program)?;
+    println!("Process size: {}", parsed_process_size.1);
+    let mut rest = parsed_process_size.0;
+    loop {
+        let instruction = parse_instruction(rest)?;
+        println!("{:?}", instruction.1);
+        rest = instruction.0;
+    }
+}
+
+fn disassembly_program(program: &[u8]) -> IResult<&[u8], ()> {
+    use Instruction::*;
+    let parsed_process_size = le_u16(program)?;
+    println!("process size {}", parsed_process_size.1);
+    let mut rest = parsed_process_size.0;
+    let mut previous_instruction = Terminate(0);
+    loop {
+        let instruction = parse_instruction(rest)?;
+        match instruction.1 {
+            Terminate(_) => match previous_instruction {
+                Terminate(_) => return Ok((b"", ())),
+                _ => (),
+            },
+            _ => (),
+        };
+        previous_instruction = instruction.1;
+        println!("{}", instruction.1);
+        rest = instruction.0;
+    }
 }
 
 fn main() {
@@ -498,6 +380,9 @@ fn main() {
         2, 0, // 41, 1: two: word 2
            // 43, 1: primes: array 400
     ];
-    let return_code = execute_program(&prog).unwrap();
-    println!("\nReturn code: {}", return_code);
+    println!("FOR DEBUG");
+    let _ = disassembly_program_for_debug(&prog);
+    println!();
+    println!("FOR ASSEMBLING");
+    let _ = disassembly_program(&prog);
 }
