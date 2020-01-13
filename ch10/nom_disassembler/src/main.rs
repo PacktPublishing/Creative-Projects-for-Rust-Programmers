@@ -22,7 +22,7 @@ impl std::fmt::Display for Word {
 
 impl std::fmt::Debug for Word {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}: {}, {}", self.0, self.0 % 256, self.0 / 256)
+        write!(f, "{}: {}, {}", self.0, self.0 as u8, self.0 >> 8)
     }
 }
 
@@ -54,6 +54,7 @@ impl std::fmt::Display for Instruction {
             StoreByte(word) => write!(f, "store byte {}", word),
             IndirectLoadByte(word) => write!(f, "indirect load byte {}", word),
             IndirectStoreByte(word) => write!(f, "indirect store byte {}", word),
+            Byte(byte) => write!(f, "data byte {}", byte),
         }
     }
 }
@@ -84,6 +85,7 @@ enum Instruction {
     StoreByte(Word),
     IndirectLoadByte(Word),
     IndirectStoreByte(Word),
+    Byte(u8),
 }
 
 fn parse_terminate(input: &[u8]) -> IResult<&[u8], Instruction> {
@@ -215,16 +217,39 @@ fn parse_instruction(input: &[u8]) -> IResult<&[u8], Instruction> {
     ))(input)
 }
 
+impl Instruction {
+    fn len(self) -> usize {
+        use Instruction::*;
+        match self {
+            Byte(_) => 1,
+            Terminate(_) | Input(_) | Output(_) => 2,
+            _ => 3,
+        }
+    }
+}
+
 fn disassembly_program_for_debug(program: &[u8]) -> IResult<&[u8], ()> {
+    use Instruction::*;
     println!("Program size: {}", program.len());
     let parsed_process_size = le_u16(program)?;
     println!("Process size: {}", parsed_process_size.1);
     let mut rest = parsed_process_size.0;
+    let mut offset = 2;
     loop {
         let instruction = parse_instruction(rest)?;
-        println!("{:?}", instruction.1);
+        println!("{:5}: {:?}", offset, instruction.1);
+        offset += instruction.1.len();
         rest = instruction.0;
+        if let Terminate(_) = instruction.1 {
+            break;
+        }
     }
+    for byte in rest {
+        let instr = Byte(*byte);
+        println!("{:5}: {:?}", offset, instr);
+        offset += instr.len();
+    }
+    Ok((b"", ()))
 }
 
 fn disassembly_program(program: &[u8]) -> IResult<&[u8], ()> {
@@ -232,20 +257,22 @@ fn disassembly_program(program: &[u8]) -> IResult<&[u8], ()> {
     let parsed_process_size = le_u16(program)?;
     println!("process size {}", parsed_process_size.1);
     let mut rest = parsed_process_size.0;
-    let mut previous_instruction = Terminate(0);
+    let mut offset = 2;
     loop {
         let instruction = parse_instruction(rest)?;
-        match instruction.1 {
-            Terminate(_) => match previous_instruction {
-                Terminate(_) => return Ok((b"", ())),
-                _ => (),
-            },
-            _ => (),
-        };
-        previous_instruction = instruction.1;
-        println!("{}", instruction.1);
+        println!("{:5}: {}", offset, instruction.1);
+        offset += instruction.1.len();
         rest = instruction.0;
+        if let Terminate(_) = instruction.1 {
+            break;
+        }
     }
+    for byte in rest {
+        let instr = Byte(*byte);
+        println!("{:5}: {}", offset, instr);
+        offset += instr.len();
+    }
+    Ok((b"", ()))
 }
 
 fn main() {

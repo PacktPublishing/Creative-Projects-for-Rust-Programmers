@@ -3,20 +3,19 @@ fn input_line(buffer: &mut [u16]) {
     std::io::stdin()
         .read_line(&mut text)
         .expect("Cannot read line.");
-    for i in 0..text.len().min(buffer.len()) {
-        buffer[i] = text.as_bytes()[i].into();
+    let text_size = text.len().min(buffer.len());
+    for (i, word) in buffer.iter_mut().enumerate().take(text_size) {
+        *word = text.as_bytes()[i].into();
     }
-    for i in text.len()..buffer.len() {
-        buffer[i] = 0;
+    for word in buffer.iter_mut().skip(text.len()) {
+        *word = 0;
     }
 }
 
 fn execute(program: &[u16]) -> u16 {
     let mut acc: u16 = 0;
     let mut process = vec![0u16; program[0] as usize];
-    for i in 0..program.len() {
-        process[i] = program[i];
-    }
+    process[..program.len()].copy_from_slice(program);
     let mut ip = 1;
     loop {
         let opcode = process[ip];
