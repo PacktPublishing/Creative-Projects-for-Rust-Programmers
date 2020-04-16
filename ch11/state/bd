@@ -1,0 +1,7 @@
+#!/bin/sh
+cur_dir=$(pwd)
+cd ../linux-fw
+cargo build
+cd $cur_dir
+RUST_TARGET_PATH=$(pwd)/../linux-fw cargo xbuild --target x86_64-linux-kernel-module && make
+
