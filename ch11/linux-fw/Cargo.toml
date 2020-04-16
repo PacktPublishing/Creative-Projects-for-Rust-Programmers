@@ -1,0 +1,21 @@
+[package]
+name = "linux-kernel-module"
+version = "0.1.0"
+authors = ["Li Zhuohua <lizhuohua1994@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+# failure = { version = "0.1.3", features = [] }
+# libc = { version = "0.2.43", default-features = false }
+# spin = "0.4.9"
+[build-dependencies]
+bindgen = "0.43.0"
+cc = "1.0.25"
+shlex = "0.1.1"
+
+[profile.release]
+lto = true
+panic="abort"
+
+[profile.dev]
+panic="abort"
