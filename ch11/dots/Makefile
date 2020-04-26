@@ -6,9 +6,9 @@ else
 endif
 
 ifeq ($(TARGET),armv7l-linux-kernel-module)
-dots-objs := target/$(TARGET)/$(BUILD)/libdots.a ../linux-fw/src/c_wrapper.o
+dots-objs := target/$(TARGET)/$(BUILD)/libdots.a
 else
-dots-objs := target/x86_64-linux-kernel-module/$(BUILD)/libdots.a ../linux-fw/src/c_wrapper.o
+dots-objs := target/x86_64-linux-kernel-module/$(BUILD)/libdots.a
 endif
 EXTRA_LDFLAGS += --entry=init_module
 
