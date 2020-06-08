@@ -1,5 +1,4 @@
-use rusqlite::types::ToSql;
-use rusqlite::{Connection, Result, NO_PARAMS};
+use rusqlite::{params, Connection, Result};
 
 #[derive(Debug)]
 struct SaleWithProduct {
@@ -13,14 +12,14 @@ struct SaleWithProduct {
 fn create_db() -> Result<Connection> {
     let database_file = "sales.db";
     let conn = Connection::open(database_file)?;
-    let _ = conn.execute("DROP TABLE Sales", NO_PARAMS);
-    let _ = conn.execute("DROP TABLE Products", NO_PARAMS);
+    let _ = conn.execute("DROP TABLE Sales", params![]);
+    let _ = conn.execute("DROP TABLE Products", params![]);
     conn.execute(
         "CREATE TABLE Products (
             id INTEGER PRIMARY KEY,
             category TEXT NOT NULL,
             name TEXT NOT NULL UNIQUE)",
-        NO_PARAMS,
+        params![],
     )?;
     conn.execute(
         "CREATE TABLE Sales (
@@ -29,7 +28,7 @@ fn create_db() -> Result<Connection> {
             sale_date BIGINT NOT NULL,
             quantity DOUBLE PRECISION NOT NULL,
             unit TEXT NOT NULL)",
-        NO_PARAMS,
+        params![],
     )?;
     Ok(conn)
 }
@@ -39,13 +38,13 @@ fn populate_db(conn: &Connection) -> Result<()> {
         "INSERT INTO Products (
             id, category, name
             ) VALUES ($1, $2, $3)",
-        &[&1 as &ToSql, &"fruit", &"pears"],
+        params![1, "fruit", "pears"],
     )?;
     conn.execute(
         "INSERT INTO Sales (
             id, product_id, sale_date, quantity, unit
             ) VALUES ($1, $2, $3, $4, $5)",
-        &[&"2020-183" as &ToSql, &1, &1_234_567_890_i64, &7.439, &"Kg"],
+        params!["2020-183", 1, 1_234_567_890_i64, 7.439, "Kg",],
     )?;
     Ok(())
 }
@@ -58,12 +57,14 @@ fn print_db(conn: &Connection) -> Result<()> {
         ON p.id = s.product_id
         ORDER BY s.sale_date",
     )?;
-    for sale_with_product in command.query_map(NO_PARAMS, |row| SaleWithProduct {
-        category: "".to_string(),
-        name: row.get(0),
-        quantity: row.get(2),
-        unit: row.get(1),
-        date: row.get(3),
+    for sale_with_product in command.query_map(params![], |row| {
+        Ok(SaleWithProduct {
+            category: "".to_string(),
+            name: row.get(0)?,
+            quantity: row.get(2)?,
+            unit: row.get(1)?,
+            date: row.get(3)?,
+        })
     })? {
         if let Ok(item) = sale_with_product {
             println!(

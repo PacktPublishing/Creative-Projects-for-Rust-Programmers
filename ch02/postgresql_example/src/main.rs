@@ -1,5 +1,4 @@
-use postgres::types::ToSql;
-use postgres::{Connection, Result, TlsMode};
+use postgres::{error::Error, Client, NoTls};
 
 #[derive(Debug)]
 struct SaleWithProduct {
@@ -10,14 +9,14 @@ struct SaleWithProduct {
     date: i64,
 }
 
-fn create_db() -> Result<Connection> {
+fn create_db() -> Result<Client, Error> {
     let username = "postgres";
     let password = "post";
     let host = "localhost";
     let port = "5432";
     let database = "Rust2018";
-    let conn = Connection::connect(
-        format!(
+    let mut conn = Client::connect(
+        &format!(
             "postgres://{}{}{}@{}{}{}{}{}",
             username,
             if password.is_empty() { "" } else { ":" },
@@ -28,7 +27,7 @@ fn create_db() -> Result<Connection> {
             if database.is_empty() { "" } else { "/" },
             database
         ),
-        TlsMode::None,
+        NoTls,
     )?;
     let _ = conn.execute("DROP TABLE Sales", &[]);
     let _ = conn.execute("DROP TABLE Products", &[]);
@@ -51,23 +50,23 @@ fn create_db() -> Result<Connection> {
     Ok(conn)
 }
 
-fn populate_db(conn: &Connection) -> Result<()> {
+fn populate_db(conn: &mut Client) -> Result<(), Error> {
     conn.execute(
         "INSERT INTO Products (
             id, category, name
             ) VALUES ($1, $2, $3)",
-        &[&1 as &ToSql, &"fruit", &"pears"],
+        &[&1, &"fruit", &"pears"],
     )?;
     conn.execute(
         "INSERT INTO Sales (
             id, product_id, sale_date, quantity, unit
             ) VALUES ($1, $2, $3, $4, $5)",
-        &[&"2020-183" as &ToSql, &1, &1_234_567_890_i64, &7.439, &"Kg"],
+        &[&"2020-183", &1, &1_234_567_890_i64, &7.439, &"Kg"],
     )?;
     Ok(())
 }
 
-fn print_db(conn: &Connection) -> Result<()> {
+fn print_db(conn: &mut Client) -> Result<(), Error> {
     for row in &conn.query(
         "SELECT p.name, s.unit, s.quantity, s.sale_date
         FROM Sales s
@@ -94,9 +93,9 @@ fn print_db(conn: &Connection) -> Result<()> {
     Ok(())
 }
 
-fn main() -> Result<()> {
-    let conn = create_db()?;
-    populate_db(&conn)?;
-    print_db(&conn)?;
+fn main() -> Result<(), Error> {
+    let mut conn = create_db()?;
+    populate_db(&mut conn)?;
+    print_db(&mut conn)?;
     Ok(())
 }

@@ -5,4 +5,4 @@ authors = []
 edition = "2018"
 
 [dependencies]
-postgres = "0.15"
+postgres = "0.17"

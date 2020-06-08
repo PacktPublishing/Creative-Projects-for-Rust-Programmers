@@ -1,9 +1,10 @@
 use redis::Commands;
 
 fn main() -> redis::RedisResult<()> {
-    let conn = redis::Client::open("redis://localhost/")?.get_connection()?;
+    let client = redis::Client::open("redis://localhost/")?;
+    let mut conn = client.get_connection()?;
 
-    conn.set("aKey", "a string".to_string())?;
+    conn.set("aKey", "a string")?;
     conn.set("anotherKey", 4567)?;
     conn.set(45, 12345)?;
 

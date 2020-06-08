@@ -5,4 +5,4 @@ authors = []
 edition = "2018"
 
 [dependencies]
-rusqlite = "0.16"
+rusqlite = "0.23"

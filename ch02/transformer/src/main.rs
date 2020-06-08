@@ -1,6 +1,4 @@
-use postgres::TlsMode;
 use redis::Commands;
-use rusqlite::NO_PARAMS;
 use serde_derive::{Deserialize, Serialize};
 use xml::reader::{EventReader, XmlEvent};
 
@@ -235,15 +233,16 @@ fn read_xml_file(pathname: &str, sales_and_products: &mut SalesAndProducts) {
 }
 
 fn recreate_sqlite_db(sqlite_config: &Sqlite) -> rusqlite::Result<rusqlite::Connection> {
-    let conn = rusqlite::Connection::open(&sqlite_config.db_file)?;
-    let _ = conn.execute("DROP TABLE Sales", NO_PARAMS);
-    let _ = conn.execute("DROP TABLE Products", NO_PARAMS);
+    use rusqlite::{params, Connection};
+    let conn = Connection::open(&sqlite_config.db_file)?;
+    let _ = conn.execute("DROP TABLE Sales", params![]);
+    let _ = conn.execute("DROP TABLE Products", params![]);
     conn.execute(
         "CREATE TABLE Products (
             id INTEGER PRIMARY KEY,
             category TEXT NOT NULL,
             name TEXT NOT NULL UNIQUE)",
-        NO_PARAMS,
+        params![],
     )?;
     conn.execute(
         "CREATE TABLE Sales (
@@ -252,7 +251,7 @@ fn recreate_sqlite_db(sqlite_config: &Sqlite) -> rusqlite::Result<rusqlite::Conn
             sale_date BIGINT NOT NULL,
             quantity DOUBLE PRECISION NOT NULL,
             unit TEXT NOT NULL)",
-        NO_PARAMS,
+        params![],
     )?;
     Ok(conn)
 }
@@ -261,16 +260,13 @@ fn write_into_sqlite_db(
     conn: &rusqlite::Connection,
     sales_and_products: &SalesAndProducts,
 ) -> rusqlite::Result<()> {
+    use rusqlite::params;
     for product in &sales_and_products.products {
         conn.execute(
             "INSERT INTO Products (
             id, category, name
             ) VALUES ($1, $2, $3)",
-            &[
-                &product.id as &rusqlite::types::ToSql,
-                &product.category,
-                &product.name,
-            ],
+            params![product.id, product.category, product.name],
         )?;
     }
     for sale in &sales_and_products.sales {
@@ -278,12 +274,12 @@ fn write_into_sqlite_db(
             "INSERT INTO Sales (
             id, product_id, sale_date, quantity, unit
             ) VALUES ($1, $2, $3, $4, $5)",
-            &[
-                &sale.id as &rusqlite::types::ToSql,
-                &sale.product_id,
-                &sale.date,
-                &sale.quantity,
-                &sale.unit,
+            params![
+                sale.id,
+                sale.product_id,
+                sale.date,
+                sale.quantity,
+                sale.unit,
             ],
         )?;
     }
@@ -292,9 +288,10 @@ fn write_into_sqlite_db(
 
 fn recreate_postgresql_db(
     postgresql_config: &Postgresql,
-) -> postgres::Result<postgres::Connection> {
-    let conn = postgres::Connection::connect(
-        format!(
+) -> Result<postgres::Client, postgres::error::Error> {
+    use postgres::{Client, NoTls};
+    let mut conn = Client::connect(
+        &format!(
             "postgres://{}{}{}@{}{}{}{}{}",
             postgresql_config.username,
             if postgresql_config.password.is_empty() {
@@ -317,7 +314,7 @@ fn recreate_postgresql_db(
             },
             postgresql_config.database
         ),
-        TlsMode::None,
+        NoTls,
     )?;
     conn.execute("DROP TABLE Sales", &[])?;
     conn.execute("DROP TABLE Products", &[])?;
@@ -341,19 +338,15 @@ fn recreate_postgresql_db(
 }
 
 fn write_into_postgresql_db(
-    conn: &postgres::Connection,
+    conn: &mut postgres::Client,
     sales_and_products: &SalesAndProducts,
-) -> postgres::Result<()> {
+) -> Result<(), postgres::error::Error> {
     for product in &sales_and_products.products {
         conn.execute(
             "INSERT INTO Products (
             id, category, name
             ) VALUES ($1, $2, $3)",
-            &[
-                &(product.id as i32) as &postgres::types::ToSql,
-                &product.category,
-                &product.name,
-            ],
+            &[&product.id, &product.category, &product.name],
         )?;
     }
     for sale in &sales_and_products.sales {
@@ -362,8 +355,8 @@ fn write_into_postgresql_db(
             id, product_id, sale_date, quantity, unit
             ) VALUES ($1, $2, $3, $4, $5)",
             &[
-                &sale.id as &postgres::types::ToSql,
-                &(sale.product_id as i32),
+                &sale.id,
+                &sale.product_id,
                 &sale.date,
                 &sale.quantity,
                 &sale.unit,
@@ -373,13 +366,17 @@ fn write_into_postgresql_db(
     Ok(())
 }
 
-fn write_into_redis_db(
-    redis_config: &Redis,
+fn open_redis_store(redis_config: &Redis) -> redis::RedisResult<redis::Connection> {
+    Ok(
+        redis::Client::open(format!("redis://{}/", redis_config.host).as_str())?
+            .get_connection()?,
+    )
+}
+
+fn write_into_redis_store(
+    conn: &mut redis::Connection,
     sales_and_products: &SalesAndProducts,
 ) -> redis::RedisResult<()> {
-    let conn = redis::Client::open(format!("redis://{}/", redis_config.host).as_str())?
-        .get_connection()?;
-
     for product in &sales_and_products.products {
         conn.set(
             format!("product:{}:category", product.id),
@@ -392,6 +389,47 @@ fn write_into_redis_db(
         conn.set(format!("sale:{}:sale_date", sale.id), sale.date)?;
         conn.set(format!("sale:{}:quantity", sale.id), sale.quantity)?;
         conn.set(format!("sale:{}:unit", sale.id), &sale.unit)?;
+    }
+    Ok(())
+}
+
+fn print_row_count_in_sqlite_db(conn: &rusqlite::Connection) -> rusqlite::Result<()> {
+    use rusqlite::params;
+    for count in conn
+        .prepare("SELECT COUNT(*) FROM Products")?
+        .query_map(params![], |row| {
+            let c: i64 = row.get(0)?;
+            Ok(c)
+        })?
+    {
+        if let Ok(count) = count {
+            println!("SQLite #Products={}. ", count);
+        }
+    }
+    for count in conn
+        .prepare("SELECT COUNT(*) FROM Sales")?
+        .query_map(params![], |row| {
+            let c: i64 = row.get(0)?;
+            Ok(c)
+        })?
+    {
+        if let Ok(item) = count {
+            println!("SQLite #Sales={}. ", item);
+        }
+    }
+    Ok(())
+}
+
+fn print_row_count_in_postgresql_db(
+    conn: &mut postgres::Client,
+) -> Result<(), postgres::error::Error> {
+    for row in &conn.query("SELECT COUNT(*) FROM Products", &[])? {
+        let count: i64 = row.get(0);
+        println!("PostgreSQL #Products={}. ", count);
+    }
+    for row in &conn.query("SELECT COUNT(*) FROM Sales", &[])? {
+        let count: i64 = row.get(0);
+        println!("PostgreSQL #Sales={}. ", count);
     }
     Ok(())
 }
@@ -412,10 +450,12 @@ fn main() {
     let sqlite_conn = recreate_sqlite_db(&config.sqlite).unwrap();
     write_into_sqlite_db(&sqlite_conn, &sales_and_products).unwrap();
 
-    let postgresql_conn = recreate_postgresql_db(&config.postgresql).unwrap();
-    write_into_postgresql_db(&postgresql_conn, &sales_and_products).unwrap();
+    let mut postgresql_conn = recreate_postgresql_db(&config.postgresql).unwrap();
+    write_into_postgresql_db(&mut postgresql_conn, &sales_and_products).unwrap();
 
-    write_into_redis_db(&config.redis, &sales_and_products).unwrap();
+    let mut redis_conn = open_redis_store(&config.redis).unwrap();
+    write_into_redis_store(&mut redis_conn, &sales_and_products).unwrap();
 
-    println!("Done!");
+    print_row_count_in_sqlite_db(&sqlite_conn).unwrap();
+    print_row_count_in_postgresql_db(&mut postgresql_conn).unwrap();
 }
