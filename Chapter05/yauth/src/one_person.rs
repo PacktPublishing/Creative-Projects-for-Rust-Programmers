@@ -1,4 +1,5 @@
-use yew::{html, Callback, Component, ComponentLink, Html, Renderable, ShouldRender};
+use yew::{html, Callback, Component, ComponentLink, Html, Properties, ShouldRender};
+use yew::events::InputData;
 
 use crate::db_access::{DbConnection, Person};
 
@@ -9,6 +10,7 @@ pub struct OnePersonModel {
     is_inserting: bool,
     go_to_persons_list_page: Option<Callback<()>>,
     db_connection: std::rc::Rc<std::cell::RefCell<DbConnection>>,
+    link: ComponentLink<Self>,
 }
 
 #[derive(Debug)]
@@ -18,7 +20,7 @@ pub enum OnePersonMsg {
     CancelPressed,
 }
 
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Properties)]
 pub struct OnePersonProps {
     pub id: Option<u32>,
     pub name: String,
@@ -43,7 +45,7 @@ impl Component for OnePersonModel {
     type Message = OnePersonMsg;
     type Properties = OnePersonProps;
 
-    fn create(props: Self::Properties, _link: ComponentLink<Self>) -> Self {
+    fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {
         OnePersonModel {
             id: props.id,
             name: props.name,
@@ -51,6 +53,7 @@ impl Component for OnePersonModel {
             is_inserting: props.id.is_none(),
             go_to_persons_list_page: props.go_to_persons_list_page,
             db_connection: props.db_connection.unwrap(),
+            link,
         }
     }
 
@@ -91,10 +94,8 @@ impl Component for OnePersonModel {
         self.db_connection = props.db_connection.unwrap();
         true
     }
-}
 
-impl Renderable<OnePersonModel> for OnePersonModel {
-    fn view(&self) -> Html<Self> {
+    fn view(&self) -> Html {
         html! {
             <div>
                 <div>
@@ -111,19 +112,19 @@ impl Renderable<OnePersonModel> for OnePersonModel {
                         type="text",
                         value=&self.name,
                         disabled=!self.can_write,
-                        oninput=|e| OnePersonMsg::NameChanged(e.value),
+                        oninput=self.link.callback(|e: InputData| OnePersonMsg::NameChanged(e.value)),
                     />
                 </div>
                 <div>
                     <button
-                        onclick=|_| OnePersonMsg::SavePressed,
+                        onclick=self.link.callback(|_| OnePersonMsg::SavePressed),
                         disabled=!self.can_write,
                     >
                         { if self.is_inserting { "Insert" } else { "Update" } }
                     </button>
                     { " " }
                     <button
-                        onclick=|_| OnePersonMsg::CancelPressed,
+                        onclick=self.link.callback(|_| OnePersonMsg::CancelPressed),
                         disabled=!self.can_write,
                     >
                         { "Cancel" }

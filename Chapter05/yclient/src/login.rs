@@ -1,22 +1,20 @@
-use failure::Error;
+use anyhow::Error;
 use serde_derive::Deserialize;
 use yew::format::{Json, Nothing};
 use yew::services::fetch::{FetchService, FetchTask, Request, Response};
 use yew::services::{ConsoleService, DialogService};
-use yew::{html, Callback, Component, ComponentLink, Html, Renderable, ShouldRender};
+use yew::{html, Callback, Component, ComponentLink, Html, ShouldRender, Properties};
+use yew::events::InputData;
 
 use crate::common::{add_auth, User, BACKEND_SITE};
 
 pub struct LoginModel {
     fetching: bool,
-    fetch_service: FetchService,
     ft: Option<FetchTask>,
     link: ComponentLink<LoginModel>,
-    dialog: DialogService,
     username: String,
     password: String,
     when_logged_in: Option<Callback<User>>,
-    console: ConsoleService,
 }
 
 #[derive(Debug)]
@@ -28,7 +26,7 @@ pub enum LoginMsg {
     Failure(String),
 }
 
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Properties)]
 pub struct LoginProps {
     pub username: String,
     pub password: String,
@@ -58,14 +56,11 @@ impl Component for LoginModel {
     fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {
         LoginModel {
             fetching: false,
-            fetch_service: FetchService::new(),
             ft: None,
             link,
-            dialog: DialogService::new(),
             username: props.username,
             password: props.password,
             when_logged_in: props.when_logged_in,
-            console: ConsoleService::new(),
         }
     }
 
@@ -75,11 +70,11 @@ impl Component for LoginModel {
             LoginMsg::PasswordChanged(password) => self.password = password,
             LoginMsg::LoginPressed => {
                 if self.username.is_empty() {
-                    self.dialog.alert("User not specified.");
+                    DialogService::alert("User not specified.");
                     return false;
                 }
                 self.fetching = true;
-                let callback = self.link.send_back(
+                let callback = self.link.callback(
                     move |response: Response<Json<Result<AuthenticationResult, Error>>>| {
                         let (_, Json(data)) = response.into_parts();
                         match data {
@@ -101,19 +96,19 @@ impl Component for LoginModel {
                     .unwrap();
 
                 add_auth(&self.username, &self.password, &mut request);
-                self.ft = Some(self.fetch_service.fetch(request, callback));
+                self.ft = FetchService::fetch(request, callback).ok();
             }
             LoginMsg::ReadyLogin(user) => {
                 self.fetching = false;
-                self.console.log(&format!("User: {:?}.", user));
+                ConsoleService::log(&format!("User: {:?}.", user));
                 if let Some(ref go_to_page) = self.when_logged_in {
                     go_to_page.emit(user.clone());
                 }
             }
             LoginMsg::Failure(msg) => {
                 self.fetching = false;
-                self.console.log(&format!("Failure: {:?}.", msg));
-                self.dialog.alert(&msg);
+                ConsoleService::log(&format!("Failure: {:?}.", msg));
+                DialogService::alert(&msg);
                 return false;
             }
         }
@@ -126,10 +121,8 @@ impl Component for LoginModel {
         self.when_logged_in = props.when_logged_in;
         true
     }
-}
 
-impl Renderable<LoginModel> for LoginModel {
-    fn view(&self) -> Html<Self> {
+    fn view(&self) -> Html {
         html! {
             <div>
                 <div>
@@ -137,18 +130,18 @@ impl Renderable<LoginModel> for LoginModel {
                     <input
                         type="text",
                         value=&self.username,
-                        oninput=|e| LoginMsg::UsernameChanged(e.value),
+                        oninput=self.link.callback(|e: InputData| LoginMsg::UsernameChanged(e.value)),
                     />
                 </div>
                 <div>
                     <label>{ "Password: " }</label>
                     <input
                         type="password",
-                        oninput=|e| LoginMsg::PasswordChanged(e.value),
+                        oninput=self.link.callback(|e: InputData| LoginMsg::PasswordChanged(e.value)),
                     />
                 </div>
                 <button
-                    onclick=|_| LoginMsg::LoginPressed,>
+                    onclick=self.link.callback(|_| LoginMsg::LoginPressed),>
                     { "Log in" }
                 </button>
             </div>

@@ -1,14 +1,15 @@
 use yew::services::DialogService;
-use yew::{html, Callback, Component, ComponentLink, Html, Renderable, ShouldRender};
+use yew::{html, Callback, Component, ComponentLink, Html, ShouldRender, Properties};
+use yew::events::InputData;
 
 use crate::db_access::{DbConnection, User};
 
 pub struct LoginModel {
-    dialog: DialogService,
     username: String,
     password: String,
     when_logged_in: Option<Callback<User>>,
     db_connection: std::rc::Rc<std::cell::RefCell<DbConnection>>,
+    link: ComponentLink<Self>,
 }
 
 #[derive(Debug)]
@@ -18,7 +19,7 @@ pub enum LoginMsg {
     LoginPressed,
 }
 
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Properties)]
 pub struct LoginProps {
     pub current_username: Option<String>,
     pub when_logged_in: Option<Callback<User>>,
@@ -39,13 +40,13 @@ impl Component for LoginModel {
     type Message = LoginMsg;
     type Properties = LoginProps;
 
-    fn create(props: Self::Properties, _link: ComponentLink<Self>) -> Self {
+    fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {
         LoginModel {
-            dialog: DialogService::new(),
             username: props.current_username.unwrap_or_default(),
             password: String::new(),
             when_logged_in: props.when_logged_in,
             db_connection: props.db_connection.unwrap(),
+            link,
         }
     }
 
@@ -64,11 +65,10 @@ impl Component for LoginModel {
                             go_to_page.emit(user.clone());
                         }
                     } else {
-                        self.dialog
-                            .alert("Invalid password for the specified user.");
+                        DialogService::alert("Invalid password for the specified user.");
                     }
                 } else {
-                    self.dialog.alert("User not found.");
+                    DialogService::alert("User not found.");
                 }
             }
         }
@@ -81,10 +81,8 @@ impl Component for LoginModel {
         self.db_connection = props.db_connection.unwrap();
         true
     }
-}
 
-impl Renderable<LoginModel> for LoginModel {
-    fn view(&self) -> Html<Self> {
+    fn view(&self) -> Html {
         html! {
             <div>
                 <div>
@@ -92,18 +90,18 @@ impl Renderable<LoginModel> for LoginModel {
                     <input
                         type="text",
                         value=&self.username,
-                        oninput=|e| LoginMsg::UsernameChanged(e.value),
+                        oninput=self.link.callback(|e: InputData| LoginMsg::UsernameChanged(e.value)),
                     />
                 </div>
                 <div>
                     <label>{ "Password: " }</label>
                     <input
                         type="password",
-                        oninput=|e| LoginMsg::PasswordChanged(e.value),
+                        oninput=self.link.callback(|e: InputData| LoginMsg::PasswordChanged(e.value)),
                     />
                 </div>
                 <button
-                    onclick=|_| LoginMsg::LoginPressed,>
+                    onclick=self.link.callback(|_| LoginMsg::LoginPressed),>
                     { "Log in" }
                 </button>
             </div>
