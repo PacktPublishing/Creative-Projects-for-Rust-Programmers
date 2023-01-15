@@ -1,7 +1,9 @@
-use yew::html;
+use wasm_bindgen::prelude::*;
 use yew::prelude::*;
+use yew::events::KeyboardEvent;
 
 struct Model {
+    link: ComponentLink<Self>,
     value: u64,
 }
 
@@ -14,8 +16,8 @@ enum Msg {
 impl Component for Model {
     type Message = Msg;
     type Properties = ();
-    fn create(_: Self::Properties, _: ComponentLink<Self>) -> Self {
-        Self { value: 0 }
+    fn create(_: Self::Properties, link: ComponentLink<Self>) -> Self {
+        Self { value: 0, link }
     }
 
     fn update(&mut self, msg: Self::Message) -> ShouldRender {
@@ -41,24 +43,30 @@ impl Component for Model {
             },
         }
     }
-}
 
-impl Renderable<Model> for Model {
-    fn view(&self) -> Html<Self> {
+    fn change(&mut self, _props: Self::Properties) -> ShouldRender {
+        // Should only return "true" if new properties are different to
+        // previously received properties.
+        // This component has no properties so we will always return "false".
+        false
+    }
+
+    fn view(&self) -> Html {
         html! {
             <div>
-                <button onclick=|_| Msg::Increment,>{"Increment"}</button>
-                <button onclick=|_| Msg::Reset,>{"Reset"}</button>
+                <button onclick=self.link.callback(|_| Msg::Increment)>{"Increment"}</button>
+                <button onclick=self.link.callback(|_| Msg::Reset)>{"Reset"}</button>
                 <input
-                    readonly="true",
+                    readonly=true,
                     value={self.value},
-                    onkeydown=|e| Msg::KeyDown(e.key()),
+                    onkeydown=self.link.callback(|e: KeyboardEvent| Msg::KeyDown(e.key())),
                 />
             </div>
         }
     }
 }
 
-fn main() {
-    yew::start_app::<Model>();
+#[wasm_bindgen(start)]
+pub fn run_app() {
+    App::<Model>::new().mount_to_body();
 }

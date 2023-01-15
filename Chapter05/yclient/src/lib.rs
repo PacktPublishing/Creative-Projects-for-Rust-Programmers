@@ -1,5 +1,8 @@
-#![recursion_limit = "128"]
-use yew::{html, Component, ComponentLink, Html, Renderable, ShouldRender};
+#![recursion_limit = "1024"]
+use yew::{html, Component, ComponentLink, Html, 
+    ShouldRender};
+use wasm_bindgen::prelude::*;
+use yew::prelude::*;
 
 mod common;
 use crate::login::LoginModel;
@@ -22,6 +25,7 @@ pub struct MainModel {
     username: String,
     password: String,
     can_write: bool,
+    link: ComponentLink<Self>,
 }
 
 #[derive(Debug)]
@@ -36,12 +40,13 @@ impl Component for MainModel {
     type Message = MainMsg;
     type Properties = ();
 
-    fn create(_: Self::Properties, _link: ComponentLink<Self>) -> Self {
+    fn create(_: Self::Properties, link: ComponentLink<Self>) -> Self {
         MainModel {
             page: Page::Login,
             username: "".to_string(),
             password: "".to_string(),
             can_write: false,
+            link,
         }
     }
 
@@ -59,10 +64,15 @@ impl Component for MainModel {
         }
         true
     }
-}
 
-impl Renderable<MainModel> for MainModel {
-    fn view(&self) -> Html<Self> {
+    fn change(&mut self, _props: Self::Properties) -> ShouldRender {
+        // Should only return "true" if new properties are different to
+        // previously received properties.
+        // This component has no properties so we will always return "false".
+        false
+    }
+
+    fn view(&self) -> Html {
         html! {
             <div>
                 <style>
@@ -91,7 +101,7 @@ impl Renderable<MainModel> for MainModel {
                                     <span>
                                         { " " }
                                         <button
-                                            onclick=|_| MainMsg::ChangeUserPressed,>
+                                            onclick=self.link.callback(|_| MainMsg::ChangeUserPressed),>
                                             { "Change User" }
                                         </button>
                                     </span>
@@ -105,7 +115,7 @@ impl Renderable<MainModel> for MainModel {
                     match &self.page {
                         Page::Login => html! {
                             <LoginModel:
-                                when_logged_in=MainMsg::LoggedIn,
+                                when_logged_in=Some(self.link.callback(|user: User| MainMsg::LoggedIn(user))),
                                 username=self.username.clone(),
                                 password=self.password.clone(),
                             />
@@ -113,7 +123,7 @@ impl Renderable<MainModel> for MainModel {
                         Page::PersonsList => html! {
                             <PersonsListModel:
                                 can_write=self.can_write,
-                                go_to_one_person_page=MainMsg::GoToOnePersonPage,
+                                go_to_one_person_page=Some(self.link.callback(|person: Option<Person>| MainMsg::GoToOnePersonPage(person))),
                                 username=self.username.clone(),
                                 password=self.password.clone(),
                             />
@@ -123,7 +133,7 @@ impl Renderable<MainModel> for MainModel {
                                 id=match person { Some(p) => Some(p.id), None => None },
                                 name=match person { Some(p) => p.name.clone(), None => "".to_string() },
                                 can_write=self.can_write,
-                                go_to_persons_list_page=|_| MainMsg::GoToPersonsListPage,
+                                go_to_persons_list_page=self.link.callback(|_| MainMsg::GoToPersonsListPage),
                                 username=self.username.clone(),
                                 password=self.password.clone(),
                             />
@@ -139,6 +149,7 @@ impl Renderable<MainModel> for MainModel {
     }
 }
 
-fn main() {
-    yew::start_app::<MainModel>();
+#[wasm_bindgen(start)]
+pub fn run_app() {
+    App::<MainModel>::new().mount_to_body();
 }

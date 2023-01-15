@@ -1,24 +1,22 @@
-use failure::Error;
+use anyhow::Error;
 use yew::format::{Json, Nothing};
 use yew::services::fetch::{FetchService, FetchTask, Request, Response};
 use yew::services::{ConsoleService, DialogService};
-use yew::{html, Callback, Component, ComponentLink, Html, Renderable, ShouldRender};
+use yew::{html, Callback, Component, ComponentLink, Html, Properties, ShouldRender};
+use yew::events::InputData;
 
 use crate::common::{add_auth, Person, BACKEND_SITE};
 
 pub struct PersonsListModel {
     fetching: bool,
-    fetch_service: FetchService,
     ft: Option<FetchTask>,
     link: ComponentLink<PersonsListModel>,
-    dialog: DialogService,
     id_to_find: Option<u32>,
     name_portion: String,
     filtered_persons: Vec<Person>,
     selected_ids: std::collections::HashSet<u32>,
     can_write: bool,
     go_to_one_person_page: Option<Callback<Option<Person>>>,
-    console: ConsoleService,
     username: String,
     password: String,
 }
@@ -39,7 +37,7 @@ pub enum PersonsListMsg {
     Failure(String),
 }
 
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Properties)]
 pub struct PersonsListProps {
     pub can_write: bool,
     pub go_to_one_person_page: Option<Callback<Option<Person>>>,
@@ -65,17 +63,14 @@ impl Component for PersonsListModel {
     fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {
         let mut model = PersonsListModel {
             fetching: false,
-            fetch_service: FetchService::new(),
             ft: None,
             link,
-            dialog: DialogService::new(),
             id_to_find: None,
             name_portion: "".to_string(),
             filtered_persons: Vec::<Person>::new(),
             selected_ids: std::collections::HashSet::<u32>::new(),
             can_write: props.can_write,
             go_to_one_person_page: props.go_to_one_person_page,
-            console: ConsoleService::new(),
             username: props.username,
             password: props.password,
         };
@@ -91,19 +86,17 @@ impl Component for PersonsListModel {
                     self.update(PersonsListMsg::EditPressed(id));
                 }
                 None => {
-                    self.dialog.alert("No id specified.");
+                    DialogService::alert("No id specified.");
                 }
             },
             PersonsListMsg::PartialNameChanged(s) => self.name_portion = s,
             PersonsListMsg::DeletePressed => {
-                if self
-                    .dialog
-                    .confirm("Do you confirm to delete the selected persons?")
+                if DialogService::confirm("Do you confirm to delete the selected persons?")
                 {
                     self.fetching = true;
                     let callback =
                         self.link
-                            .send_back(move |response: Response<Json<Result<u32, Error>>>| {
+                            .callback(move |response: Response<Json<Result<u32, Error>>>| {
                                 let (meta, Json(data)) = response.into_parts();
                                 if meta.status.is_success() {
                                     PersonsListMsg::ReadyDeletedPersons(data)
@@ -125,17 +118,16 @@ impl Component for PersonsListModel {
                     .unwrap();
 
                     add_auth(&self.username, &self.password, &mut request);
-                    self.ft = Some(self.fetch_service.fetch(request, callback));
+                    self.ft = FetchService::fetch(request, callback).ok();
                 }
             }
             PersonsListMsg::ReadyDeletedPersons(response) => {
                 self.fetching = false;
                 let num_deleted = response.unwrap_or(0);
-                self.console
-                    .log(&format!("ReadyDeletedPersons: {}.", num_deleted));
+                ConsoleService::log(&format!("ReadyDeletedPersons: {}.", num_deleted));
 
                 self.update(PersonsListMsg::FilterPressed);
-                self.dialog.alert("Deleted.");
+                DialogService::alert("Deleted.");
             }
             PersonsListMsg::AddPressed => {
                 if let Some(ref go_to_page) = self.go_to_one_person_page {
@@ -151,10 +143,10 @@ impl Component for PersonsListModel {
             }
             PersonsListMsg::EditPressed(id) => {
                 self.fetching = true;
-                self.console.log(&format!("EditPressed: {:?}.", id));
+                ConsoleService::log(&format!("EditPressed: {:?}.", id));
                 let callback =
                     self.link
-                        .send_back(move |response: Response<Json<Result<Person, Error>>>| {
+                        .callback(move |response: Response<Json<Result<Person, Error>>>| {
                             let (meta, Json(data)) = response.into_parts();
                             if meta.status.is_success() {
                                 PersonsListMsg::ReadyPersonToEdit(data)
@@ -170,7 +162,7 @@ impl Component for PersonsListModel {
                     .unwrap();
 
                 add_auth(&self.username, &self.password, &mut request);
-                self.ft = Some(self.fetch_service.fetch(request, callback));
+                self.ft = FetchService::fetch(request, callback).ok();
             }
             PersonsListMsg::ReadyPersonToEdit(person) => {
                 self.fetching = false;
@@ -179,14 +171,13 @@ impl Component for PersonsListModel {
                     name: "".to_string(),
                 });
                 if let Some(ref go_to_page) = self.go_to_one_person_page {
-                    self.console
-                        .log(&format!("ReadyPersonToEdit: {:?}.", person));
+                    ConsoleService::log(&format!("ReadyPersonToEdit: {:?}.", person));
                     go_to_page.emit(Some(person.clone()));
                 }
             }
             PersonsListMsg::FilterPressed => {
                 self.fetching = true;
-                let callback = self.link.send_back(
+                let callback = self.link.callback(
                     move |response: Response<Json<Result<Vec<Person>, Error>>>| {
                         let (meta, Json(data)) = response.into_parts();
                         if meta.status.is_success() {
@@ -207,20 +198,20 @@ impl Component for PersonsListModel {
                 .unwrap();
 
                 add_auth(&self.username, &self.password, &mut request);
-                self.ft = Some(self.fetch_service.fetch(request, callback));
+                self.ft = FetchService::fetch(request, callback).ok();
             }
             PersonsListMsg::ReadyFilteredPersons(response) => {
                 self.fetching = false;
                 self.filtered_persons = response.unwrap_or_else(|_| vec![]);
-                self.console.log(&format!(
+                ConsoleService::log(&format!(
                     "ReadyFilteredPersons: {:?}.",
                     self.filtered_persons
                 ));
             }
             PersonsListMsg::Failure(msg) => {
                 self.fetching = false;
-                self.console.log(&format!("Failure: {:?}.", msg));
-                self.dialog.alert(&msg);
+                ConsoleService::log(&format!("Failure: {:?}.", msg));
+                DialogService::alert(&msg);
                 return false;
             }
         }
@@ -235,20 +226,18 @@ impl Component for PersonsListModel {
         self.update(PersonsListMsg::FilterPressed);
         true
     }
-}
 
-impl Renderable<PersonsListModel> for PersonsListModel {
-    fn view(&self) -> Html<Self> {
+    fn view(&self) -> Html {
         html! {
             <div>
                 <div>
                     <label>{ "Id: " }</label>
                     <input
                         type="number",
-                        oninput=|e| PersonsListMsg::IdChanged(e.value),/>
+                        oninput=self.link.callback(|e: InputData| PersonsListMsg::IdChanged(e.value)),/>
                     { " " }
                     <button
-                        onclick=|_| PersonsListMsg::FindPressed,>
+                        onclick=self.link.callback(|_| PersonsListMsg::FindPressed),>
                         { "Find" }
                     </button>
                 </div>
@@ -256,24 +245,24 @@ impl Renderable<PersonsListModel> for PersonsListModel {
                     <label>{ "Name portion: " }</label>
                     <input
                         type="text",
-                        oninput=|e| PersonsListMsg::PartialNameChanged(e.value),
+                        oninput=self.link.callback(|e: InputData| PersonsListMsg::PartialNameChanged(e.value)),
                     />
                     { " " }
                     <button
-                        onclick=|_| PersonsListMsg::FilterPressed,
+                        onclick=self.link.callback(|_| PersonsListMsg::FilterPressed),
                     >
                         { "Filter" }
                     </button>
                 </div>
                 <button
-                    onclick=|_| PersonsListMsg::DeletePressed,
+                    onclick=self.link.callback(|_| PersonsListMsg::DeletePressed),
                     disabled=!self.can_write,
                 >
                     { "Delete Selected Persons" }
                     </button>
                 { " " }
                 <button
-                    onclick=|_| PersonsListMsg::AddPressed,
+                    onclick=self.link.callback(|_| PersonsListMsg::AddPressed),
                     disabled=!self.can_write,
                 >
                     { "Add New Person" }
@@ -292,17 +281,17 @@ impl Renderable<PersonsListModel> for PersonsListModel {
                                 <tbody>
                                     {
                                         for self.filtered_persons.iter().map(|p| {
-                                            let id = p.id;
+                                            let id = p.id.clone();
                                             let name = p.name.clone();
                                             html! {
                                                 <tr>
                                                     <td><input
                                                         type="checkbox",
-                                                        oninput=|_| PersonsListMsg::SelectionToggled(id),
+                                                        oninput=self.link.callback(move |_| PersonsListMsg::SelectionToggled(id)),
                                                         checked=self.selected_ids.contains(&id),
                                                         /></td>
                                                     <td><button
-                                                        onclick=|_| PersonsListMsg::EditPressed(id),>{ "Edit" }</button></td>
+                                                        onclick=self.link.callback(move |_| PersonsListMsg::EditPressed(id)),>{ "Edit" }</button></td>
                                                     <td>{ id }</td>
                                                     <td>{ name }</td>
                                                 </tr>

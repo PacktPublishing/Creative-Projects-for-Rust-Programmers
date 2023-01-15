@@ -1,23 +1,21 @@
-use failure::Error;
+use anyhow::Error;
 use yew::format::{Json, Nothing};
 use yew::services::fetch::{FetchService, FetchTask, Request, Response};
 use yew::services::{ConsoleService, DialogService};
-use yew::{html, Callback, Component, ComponentLink, Html, Renderable, ShouldRender};
+use yew::{html, Callback, Component, ComponentLink, Html, Properties, ShouldRender};
+use yew::events::InputData;
 
 use crate::common::{add_auth, BACKEND_SITE};
 
 pub struct OnePersonModel {
     fetching: bool,
-    fetch_service: FetchService,
     ft: Option<FetchTask>,
     link: ComponentLink<OnePersonModel>,
-    dialog: DialogService,
     id: Option<u32>,
     name: String,
     can_write: bool,
     is_inserting: bool,
     go_to_persons_list_page: Option<Callback<()>>,
-    console: ConsoleService,
     username: String,
     password: String,
 }
@@ -31,7 +29,7 @@ pub enum OnePersonMsg {
     Failure(String),
 }
 
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Properties)]
 pub struct OnePersonProps {
     pub id: Option<u32>,
     pub name: String,
@@ -61,16 +59,13 @@ impl Component for OnePersonModel {
     fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {
         OnePersonModel {
             fetching: false,
-            fetch_service: FetchService::new(),
             ft: None,
             link,
-            dialog: DialogService::new(),
             id: props.id,
             name: props.name,
             can_write: props.can_write,
             is_inserting: props.id.is_none(),
             go_to_persons_list_page: props.go_to_persons_list_page,
-            console: ConsoleService::new(),
             username: props.username,
             password: props.password,
         }
@@ -83,7 +78,7 @@ impl Component for OnePersonModel {
                 self.fetching = true;
                 let callback =
                     self.link
-                        .send_back(move |response: Response<Json<Result<bool, Error>>>| {
+                        .callback(move |response: Response<Json<Result<bool, Error>>>| {
                             let (meta, Json(_)) = response.into_parts();
                             if meta.status.is_success() {
                                 OnePersonMsg::SavedPerson
@@ -108,7 +103,7 @@ impl Component for OnePersonModel {
                 .unwrap();
 
                 add_auth(&self.username, &self.password, &mut request);
-                self.ft = Some(self.fetch_service.fetch(request, callback));
+                self.ft = FetchService::fetch(request, callback).ok();
             }
             OnePersonMsg::CancelPressed => {
                 if let Some(ref go_to_page) = self.go_to_persons_list_page {
@@ -123,8 +118,8 @@ impl Component for OnePersonModel {
             }
             OnePersonMsg::Failure(msg) => {
                 self.fetching = false;
-                self.console.log(&format!("Failure: {:?}.", msg));
-                self.dialog.alert(&msg);
+                ConsoleService::log(&format!("Failure: {:?}.", msg));
+                DialogService::alert(&msg);
                 return false;
             }
         }
@@ -141,10 +136,8 @@ impl Component for OnePersonModel {
         self.password = props.password;
         true
     }
-}
 
-impl Renderable<OnePersonModel> for OnePersonModel {
-    fn view(&self) -> Html<Self> {
+    fn view(&self) -> Html {
         html! {
             <div>
                 <div>
@@ -161,19 +154,19 @@ impl Renderable<OnePersonModel> for OnePersonModel {
                         type="text",
                         value=&self.name,
                         disabled=!self.can_write,
-                        oninput=|e| OnePersonMsg::NameChanged(e.value),
+                        oninput=self.link.callback(|e: InputData| OnePersonMsg::NameChanged(e.value)),
                     />
                 </div>
                 <div>
                     <button
-                        onclick=|_| OnePersonMsg::SavePressed,
+                        onclick=self.link.callback(|_| OnePersonMsg::SavePressed),
                         disabled=!self.can_write,
                     >
                         { if self.is_inserting { "Insert" } else { "Update" } }
                     </button>
                     { " " }
                     <button
-                        onclick=|_| OnePersonMsg::CancelPressed,
+                        onclick=self.link.callback(|_| OnePersonMsg::CancelPressed),
                         disabled=!self.can_write,
                     >
                         { "Cancel" }
